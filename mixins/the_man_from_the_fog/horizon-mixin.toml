@@ -1,6 +1,6 @@
 [mod]
 id = "the_man_from_the_fog"
-version = "0.1.2"
+version = "0.1.3"
 priority = 100
 
 [compatibility]
@@ -121,25 +121,4 @@ bindings = [
   { name = "game", ty = "&crate::game::Game<'_>", value = "&*self" },
   { name = "pos", ty = "[i32; 3]", value = "pos" },
   { name = "problem", ty = "&mut Option<String>", value = "&mut *problem" },
-]
-
-# `/test`: the command and what it does.
-[[injection]]
-id = "register_test"
-hook = "register_commands"
-hook_version = 1
-kind = "HEAD"
-helper = "command_register.rs"
-bindings = [{ name = "commands", ty = "&mut Vec<horizon_client::mod_api::NativeCommand>", value = "&mut *commands" }]
-
-[[injection]]
-id = "test_command"
-hook = "perform_command"
-hook_version = 1
-kind = "HEAD"
-helper = "command_run.rs"
-bindings = [
-  { name = "game", ty = "&mut crate::game::Game<'_>", value = "&mut *self" },
-  { name = "command", ty = "&str", value = "command" },
-  { name = "ran", ty = "&mut bool", value = "&mut *ran" },
 ]

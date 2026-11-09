@@ -134,6 +134,9 @@ pub struct Fog {
     scared: bool,
 }
 
+/// Blocks in front of the player where "Summon him now" puts him.
+pub const SUMMON_DISTANCE: f64 = 4.0;
+
 pub fn is_night(day_time: i64) -> bool {
     (13_000..=23_000).contains(&day_time.rem_euclid(24_000))
 }
@@ -288,9 +291,14 @@ impl Fog {
                     return out; // he waits for the dark
                 }
                 self.phase = Phase::Spawning;
+                let view_yaw = s.view[0].atan2(s.view[2]);
+                if forced {
+                    // "Summon him now": four blocks straight ahead of the player.
+                    out.push(Action::Spawn { distance: SUMMON_DISTANCE, direction: view_yaw });
+                    return out;
+                }
                 let distance = cfg.distance_min + self.rng.unit() * (cfg.distance_max - cfg.distance_min);
                 // Not in front of the player: somewhere in the half of the circle behind or beside them.
-                let view_yaw = s.view[0].atan2(s.view[2]);
                 let offset = (0.6 + self.rng.unit() * 1.9) * if self.rng.chance(50) { 1.0 } else { -1.0 };
                 let direction = view_yaw + offset;
                 out.push(Action::Spawn { distance, direction });
@@ -527,6 +535,18 @@ mod tests {
         let mut g = Fog::new(3, &c);
         let out = g.tick(&c, &sense(None, SOUTH, 6_000), true);
         assert!(out.iter().any(|a| matches!(a, Action::Spawn { .. })));
+    }
+
+    #[test]
+    fn a_summon_puts_him_four_blocks_straight_ahead() {
+        let c = cfg();
+        for (view, yaw) in [(SOUTH, 0.0_f64), (NORTH, std::f64::consts::PI)] {
+            let mut f = Fog::new(5, &c);
+            let out = f.tick(&c, &sense(None, view, 6_000), true);
+            let Some(Action::Spawn { distance, direction }) = out.first().cloned() else { panic!("no spawn") };
+            assert_eq!(distance, 4.0);
+            assert!((direction.sin() - yaw.sin()).abs() < 1e-9 && (direction.cos() - yaw.cos()).abs() < 1e-9);
+        }
     }
 
     #[test]
