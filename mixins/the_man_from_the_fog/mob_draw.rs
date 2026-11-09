@@ -16,6 +16,9 @@ fn the_man_from_the_fog_draw(
     for part in model::PARTS.iter() {
         let degrees = model::swing_degrees(part.motion, mob.walk_position, mob.walk_speed, mob.age);
         draw.push();
+        if part.splay != 0.0 {
+            draw.rotate_about([0.0, 0.0, 1.0], part.splay, part.pivot);
+        }
         if degrees != 0.0 {
             draw.rotate_about([1.0, 0.0, 0.0], degrees, part.pivot);
         }

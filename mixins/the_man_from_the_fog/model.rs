@@ -44,14 +44,20 @@ pub struct Part {
     /// Only the face towards the front is drawn (eyes and mouth are decals).
     pub front_only: bool,
     pub motion: Motion,
+    /// Degrees about the front axis; positive swings the lower end towards +x.
+    pub splay: f32,
 }
 
 const fn body(name: &'static str, from: [f32; 3], to: [f32; 3], pivot: [f32; 3], motion: Motion) -> Part {
-    Part { name, from, to, pivot, paint: Paint::Body, front_only: false, motion }
+    Part { name, from, to, pivot, paint: Paint::Body, front_only: false, motion, splay: 0.0 }
 }
 
 const fn decal(name: &'static str, from: [f32; 3], to: [f32; 3], paint: Paint) -> Part {
-    Part { name, from, to, pivot: [0.0, 0.0, 0.0], paint, front_only: true, motion: Motion::Still }
+    Part { name, from, to, pivot: [0.0, 0.0, 0.0], paint, front_only: true, motion: Motion::Still, splay: 0.0 }
+}
+
+const fn limb(name: &'static str, from: [f32; 3], to: [f32; 3], pivot: [f32; 3], motion: Motion, splay: f32) -> Part {
+    Part { name, from, to, pivot, paint: Paint::Body, front_only: false, motion, splay }
 }
 
 /// Standing height in blocks.
@@ -59,10 +65,13 @@ pub const HEIGHT: f32 = 3.0;
 
 const SWING_ARM_R: Motion = Motion::Swing { sign: -1.0, amount: 0.6 };
 const SWING_ARM_L: Motion = Motion::Swing { sign: 1.0, amount: 0.6 };
-const SHOULDER_R: [f32; 3] = [-0.28, 2.3, 0.0];
-const SHOULDER_L: [f32; 3] = [0.28, 2.3, 0.0];
+const SHOULDER_R: [f32; 3] = [-0.2, 2.25, 0.0];
+const SHOULDER_L: [f32; 3] = [0.2, 2.25, 0.0];
 
-/// A bar of the mouth on the chest: red, with a white tooth at its lower end.
+/// Arms hang a little away from the body, as in the photos.
+const SPLAY: f32 = 7.0;
+
+/// A bar of the mouth on the chest.
 const fn bar(name: &'static str, x0: f32, x1: f32, y0: f32, y1: f32, paint: Paint) -> Part {
     decal(name, [x0, y0, 2.0], [x1, y1, 2.05], paint)
 }
@@ -71,45 +80,46 @@ const fn tooth(name: &'static str, x0: f32, x1: f32, y0: f32, y1: f32) -> Part {
     decal(name, [x0, y0, 2.05], [x1, y1, 2.1], Paint::Teeth)
 }
 
-/// The photos show: a small square head with two white eyes, a thin torso, arms that hang past the
-/// knees ending in three claws, and across the chest a mouth made of red bars with white teeth,
-/// a row of four under the head and a smile of two side bars and a bottom bar below it.
+/// The photos show: a small square black head with two small white eyes close under its top, a
+/// narrow torso, long thin legs, arms that hang past the knees (a little away from the body)
+/// ending in three long claws, and down the chest a mouth of red bars with white tips. The upper
+/// row of four hangs from the head (red at the top, white tip below); the lower row of four
+/// rises to meet it (white tip on top, red below), the outer bars longer than the inner.
 pub const PARTS: &[Part] = &[
-    // Legs: thin and long, hip at 1.5 blocks.
     body("leg_right", [-3.0, 0.0, -1.0], [-1.0, 24.0, 1.0], [-0.125, 1.5, 0.0], Motion::Swing { sign: 1.0, amount: 0.8 }),
     body("leg_left", [1.0, 0.0, -1.0], [3.0, 24.0, 1.0], [0.125, 1.5, 0.0], Motion::Swing { sign: -1.0, amount: 0.8 }),
-    body("torso", [-3.5, 24.0, -2.0], [3.5, 38.0, 2.0], [0.0, 0.0, 0.0], Motion::Still),
-    body("neck", [-1.0, 38.0, -1.0], [1.0, 40.0, 1.0], [0.0, 0.0, 0.0], Motion::Still),
+    body("torso", [-3.0, 24.0, -2.0], [3.0, 40.0, 2.0], [0.0, 0.0, 0.0], Motion::Still),
     body("head", [-3.0, 40.0, -3.0], [3.0, 47.0, 3.0], [0.0, 0.0, 0.0], Motion::Still),
-    // Arms hang past the knees, shoulder at 2.3 blocks.
-    body("arm_right", [-5.5, 6.0, -1.0], [-3.5, 36.0, 1.0], SHOULDER_R, SWING_ARM_R),
-    body("arm_left", [3.5, 6.0, -1.0], [5.5, 36.0, 1.0], SHOULDER_L, SWING_ARM_L),
-    // Three claws on each hand.
-    body("finger_right_0", [-5.5, 0.0, -0.6], [-4.9, 6.0, 0.6], SHOULDER_R, SWING_ARM_R),
-    body("finger_right_1", [-4.8, 0.0, -0.6], [-4.2, 6.0, 0.6], SHOULDER_R, SWING_ARM_R),
-    body("finger_right_2", [-4.1, 0.0, -0.6], [-3.5, 6.0, 0.6], SHOULDER_R, SWING_ARM_R),
-    body("finger_left_0", [3.5, 0.0, -0.6], [4.1, 6.0, 0.6], SHOULDER_L, SWING_ARM_L),
-    body("finger_left_1", [4.2, 0.0, -0.6], [4.8, 6.0, 0.6], SHOULDER_L, SWING_ARM_L),
-    body("finger_left_2", [4.9, 0.0, -0.6], [5.5, 6.0, 0.6], SHOULDER_L, SWING_ARM_L),
+    limb("arm_right", [-5.5, 6.0, -1.0], [-3.0, 36.0, 1.0], SHOULDER_R, SWING_ARM_R, -SPLAY),
+    limb("arm_left", [3.0, 6.0, -1.0], [5.5, 36.0, 1.0], SHOULDER_L, SWING_ARM_L, SPLAY),
+    // Three long claws on each hand, fanned a little.
+    limb("finger_right_0", [-5.5, -1.0, -0.6], [-4.9, 6.0, 0.6], SHOULDER_R, SWING_ARM_R, -SPLAY - 5.0),
+    limb("finger_right_1", [-4.8, -1.0, -0.6], [-4.2, 6.0, 0.6], SHOULDER_R, SWING_ARM_R, -SPLAY),
+    limb("finger_right_2", [-4.1, -1.0, -0.6], [-3.5, 6.0, 0.6], SHOULDER_R, SWING_ARM_R, -SPLAY + 5.0),
+    limb("finger_left_0", [3.5, -1.0, -0.6], [4.1, 6.0, 0.6], SHOULDER_L, SWING_ARM_L, SPLAY - 5.0),
+    limb("finger_left_1", [4.2, -1.0, -0.6], [4.8, 6.0, 0.6], SHOULDER_L, SWING_ARM_L, SPLAY),
+    limb("finger_left_2", [4.9, -1.0, -0.6], [5.5, 6.0, 0.6], SHOULDER_L, SWING_ARM_L, SPLAY + 5.0),
     // Two small white eyes.
-    decal("eye_right", [-2.0, 43.0, 3.0], [-1.0, 44.0, 3.05], Paint::Eye),
-    decal("eye_left", [1.0, 43.0, 3.0], [2.0, 44.0, 3.05], Paint::Eye),
-    // The upper row of the mouth: four red bars with a white tooth at the lower end.
-    bar("mouth_0", -2.4, -1.6, 32.0, 37.0, Paint::Mouth),
-    bar("mouth_1", -0.9, -0.1, 32.0, 37.0, Paint::Mouth),
-    bar("mouth_2", 0.1, 0.9, 32.0, 37.0, Paint::Mouth),
-    bar("mouth_3", 1.6, 2.4, 32.0, 37.0, Paint::Mouth),
-    tooth("tooth_0", -2.4, -1.6, 32.0, 33.5),
-    tooth("tooth_1", -0.9, -0.1, 32.0, 33.5),
-    tooth("tooth_2", 0.1, 0.9, 32.0, 33.5),
-    tooth("tooth_3", 1.6, 2.4, 32.0, 33.5),
-    // The smile below it: a bar at each side and one along the bottom, with white teeth.
-    bar("smile_left", -2.4, -1.6, 27.0, 30.5, Paint::Mouth),
-    bar("smile_right", 1.6, 2.4, 27.0, 30.5, Paint::Mouth),
-    bar("smile_bottom", -1.6, 1.6, 27.0, 28.5, Paint::Mouth),
-    tooth("smile_tooth_left", -2.4, -1.6, 29.0, 30.5),
-    tooth("smile_tooth_right", 1.6, 2.4, 29.0, 30.5),
-    tooth("smile_tooth_mid", -0.4, 0.4, 27.0, 28.5),
+    decal("eye_right", [-1.9, 43.0, 3.0], [-1.1, 44.0, 3.05], Paint::Eye),
+    decal("eye_left", [1.1, 43.0, 3.0], [1.9, 44.0, 3.05], Paint::Eye),
+    // Upper row: red at the top, white tip at the bottom.
+    bar("mouth_0", -2.7, -1.9, 33.5, 38.5, Paint::Mouth),
+    bar("mouth_1", -1.3, -0.5, 33.5, 38.5, Paint::Mouth),
+    bar("mouth_2", 0.5, 1.3, 33.5, 38.5, Paint::Mouth),
+    bar("mouth_3", 1.9, 2.7, 33.5, 38.5, Paint::Mouth),
+    tooth("tooth_0", -2.7, -1.9, 31.5, 33.5),
+    tooth("tooth_1", -1.3, -0.5, 31.5, 33.5),
+    tooth("tooth_2", 0.5, 1.3, 31.5, 33.5),
+    tooth("tooth_3", 1.9, 2.7, 31.5, 33.5),
+    // Lower row: red at the bottom, white tip at the top; outer bars longer than the inner ones.
+    bar("jaw_0", -2.7, -1.9, 25.0, 28.0, Paint::Mouth),
+    bar("jaw_1", -1.3, -0.5, 25.0, 27.0, Paint::Mouth),
+    bar("jaw_2", 0.5, 1.3, 25.0, 27.0, Paint::Mouth),
+    bar("jaw_3", 1.9, 2.7, 25.0, 28.0, Paint::Mouth),
+    tooth("jaw_tooth_0", -2.7, -1.9, 28.0, 30.0),
+    tooth("jaw_tooth_1", -1.3, -0.5, 27.0, 29.0),
+    tooth("jaw_tooth_2", 0.5, 1.3, 27.0, 29.0),
+    tooth("jaw_tooth_3", 1.9, 2.7, 28.0, 30.0),
 ];
 
 /// Degrees a part swings at this moment of the walk cycle and its idle sway.
@@ -137,7 +147,7 @@ mod tests {
             for i in 0..3 {
                 assert!(p.from[i] < p.to[i], "{} axis {i}", p.name);
             }
-            assert!(p.from[1] >= 0.0 && p.to[1] / 16.0 <= HEIGHT + 0.01, "{} is within his height", p.name);
+            assert!(p.from[1] >= -1.0 && p.to[1] / 16.0 <= HEIGHT + 0.01, "{} is within his height", p.name);
         }
     }
 
