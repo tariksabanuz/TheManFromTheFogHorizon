@@ -1,0 +1,92 @@
+[mod]
+id = "the_man_from_the_fog"
+version = "0.1.0"
+priority = 100
+
+[compatibility]
+horizon_revision = "fdc87aecdbd116bf1e08adcd062fcbaea8c2e2ca"
+
+[[module]]
+id = "config"
+file = "crates/horizon-client/src/game.rs"
+name = "native_the_man_from_the_fog_config"
+source = "config.rs"
+
+[[module]]
+id = "fog"
+file = "crates/horizon-client/src/game.rs"
+name = "native_the_man_from_the_fog_fog"
+source = "fog.rs"
+
+[[module]]
+id = "model"
+file = "crates/horizon-client/src/game.rs"
+name = "native_the_man_from_the_fog_model"
+source = "model.rs"
+
+[[module]]
+id = "runtime"
+file = "crates/horizon-client/src/game.rs"
+name = "native_the_man_from_the_fog_runtime"
+source = "runtime.rs"
+
+[[module]]
+id = "state"
+file = "crates/horizon-client/src/game.rs"
+name = "native_the_man_from_the_fog_state"
+source = "state.rs"
+
+# The mod's row in Options > Mods, with a By tariksabanuz description.
+[[injection]]
+id = "listed"
+hook = "mods"
+hook_version = 1
+kind = "HEAD"
+helper = "listed.rs"
+bindings = [{ name = "mods", ty = "&mut Vec<crate::game::native_hooks::NativeMod>", value = "&mut *mods" }]
+
+# The buttons of the mod's page, and what a click on one does.
+[[injection]]
+id = "page"
+hook = "settings"
+hook_version = 1
+kind = "HEAD"
+helper = "settings_page.rs"
+bindings = [
+  { name = "mod_id", ty = "&str", value = "mod_id" },
+  { name = "buttons", ty = "&mut Vec<String>", value = "&mut *buttons" },
+]
+
+[[injection]]
+id = "click"
+hook = "settings_click"
+hook_version = 1
+kind = "HEAD"
+helper = "settings_click.rs"
+bindings = [
+  { name = "mod_id", ty = "&str", value = "mod_id" },
+  { name = "button", ty = "usize", value = "button" },
+]
+
+# His life: once a tick for each player, on the server.
+[[injection]]
+id = "player"
+hook = "player_tick"
+hook_version = 1
+kind = "HEAD"
+helper = "player_tick.rs"
+bindings = [{ name = "game", ty = "&mut crate::game::Game<'_>", value = "&mut *self" }]
+
+# His model, drawn by the client in place of the husk his body is made from.
+[[injection]]
+id = "draw"
+hook = "mob_submit"
+hook_version = 1
+kind = "HEAD"
+helper = "mob_draw.rs"
+bindings = [
+  { name = "game", ty = "&crate::game::Game<'_>", value = "self" },
+  { name = "mob", ty = "&crate::game::native_mob_draw::NativeMobRender<'_>", value = "mob" },
+  { name = "draw", ty = "&mut crate::game::native_block_entity_draw::BlockEntityDraw", value = "&mut *draw" },
+  { name = "drawn", ty = "&mut bool", value = "&mut *drawn" },
+]

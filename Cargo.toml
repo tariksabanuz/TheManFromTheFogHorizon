@@ -1,0 +1,12 @@
+[package]
+name = "the-man-from-the-fog"
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.85"
+license = "MIT"
+description = "A stalking horror mob for Horizon, written from scratch."
+
+[lib]
+path = "src/lib.rs"
+
+[workspace]
