@@ -8,9 +8,8 @@ fn the_man_from_the_fog_draw(
 ) {
     use crate::game::native_block_entity_draw::CubeFace;
     use crate::game::native_the_man_from_the_fog_model as model;
-    use crate::game::native_the_man_from_the_fog_runtime as rt;
 
-    if mob.custom_name != Some(rt::MOB_TAG) {
+    if !crate::game::native_the_man_from_the_fog_state::with(|s| s.tracked().contains(&mob.id)) {
         return;
     }
     for part in model::PARTS.iter() {

@@ -92,16 +92,6 @@ fn the_man_from_the_fog_player(game: &mut crate::game::Game<'_>) {
         return;
     }
 
-    // A stalker left in a saved world, or one a switch-off forgot, goes: only the tracked ones stay.
-    if st::with(|s| s.next_clock()) % 100 == 0 {
-        let tracked = st::with(|s| s.tracked());
-        for m in game.mobs.iter_mut() {
-            if !m.removed && m.custom_name.as_deref() == Some(rt::MOB_TAG) && !tracked.contains(&m.id) {
-                m.removed = true;
-            }
-        }
-    }
-
     // Where he is, and whether the player has a clear line to his head.
     let mut sense_mob = None;
     if let Some(id) = mob_id {
@@ -117,6 +107,20 @@ fn the_man_from_the_fog_player(game: &mut crate::game::Game<'_>) {
                     s.lost(key);
                 });
                 mob_id = None;
+            }
+        }
+    }
+
+    // He hits: 15 damage about once a second while he hunts and is within reach.
+    if let Some(id) = mob_id {
+        let hunting = game.mobs.iter().any(|m| m.id == id && !m.no_ai && !m.removed);
+        if hunting && st::with(|s| s.next_clock()) % 20 == 0 {
+            if let Some(m) = game.native_mob(&dim, id) {
+                let (dx, dy, dz) = (m.pos[0] - feet[0], m.pos[1] - feet[1], m.pos[2] - feet[2]);
+                if (dx * dx + dz * dz).sqrt() < 2.6 && dy.abs() < 3.5 {
+                    let me = game.player.as_ref().map_or(0, |p| p.entity_id as u32);
+                    game.native_hurt_entity(&dim, me, rt::DAMAGE, "minecraft:mob_attack", Some(id));
+                }
             }
         }
     }
@@ -146,8 +150,6 @@ fn the_man_from_the_fog_player(game: &mut crate::game::Game<'_>) {
                 match spawned {
                     Some(id) => {
                         if let Some(m) = game.mobs.iter_mut().find(|m| m.id == id) {
-                            m.custom_name = Some(rt::MOB_TAG.to_owned());
-                            m.name_visible = false;
                             // 300 health and 15 damage, fast and hard to push, as the original's.
                             m.attrs.max_health = rt::HEALTH;
                             m.health = rt::HEALTH;

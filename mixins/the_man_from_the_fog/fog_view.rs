@@ -5,7 +5,6 @@ fn the_man_from_the_fog_thick_fog(
     camera: [f64; 3],
     fog: &mut horizon_client::fog::FogData,
 ) {
-    use crate::game::native_the_man_from_the_fog_runtime as rt;
     use crate::game::native_the_man_from_the_fog_state as st;
     use crate::game::native_the_man_from_the_fog_view as view;
 
@@ -15,7 +14,7 @@ fn the_man_from_the_fog_thick_fog(
     }
     let mut nearest = f64::MAX;
     for m in game.mobs.iter() {
-        if m.removed || m.custom_name.as_deref() != Some(rt::MOB_TAG) {
+        if m.removed || !st::with(|s| s.tracked().contains(&m.id)) {
             continue;
         }
         let at = [m.position.x as f64, m.position.y as f64, m.position.z as f64];
