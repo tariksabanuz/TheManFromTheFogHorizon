@@ -5,6 +5,65 @@
 // model of `model.rs` instead. While he only watches, his AI is off and he is moved by hand; a
 // chase switches it on so that he walks, climbs and hits with the husk's own abilities.
 fn the_man_from_the_fog_player(game: &mut crate::game::Game<'_>) {
+    /// Whether nothing solid stands between `from` and `to` (sampled every half block).
+    fn clear_line(game: &crate::game::Game<'_>, from: [f64; 3], to: [f64; 3]) -> bool {
+        let d = [to[0] - from[0], to[1] - from[1], to[2] - from[2]];
+        let len = (d[0] * d[0] + d[1] * d[1] + d[2] * d[2]).sqrt();
+        if len < 1.0 {
+            return true;
+        }
+        let steps = (len / 0.5).ceil() as i32;
+        for i in 1..steps {
+            let t = f64::from(i) / f64::from(steps);
+            let (x, y, z) = (from[0] + d[0] * t, from[1] + d[1] * t, from[2] + d[2] * t);
+            let state = game.world.block(x.floor() as i32, y.floor() as i32, z.floor() as i32);
+            if game.res.facts().get(state).can_occlude {
+                return false;
+            }
+        }
+        true
+    }
+
+    /// Breaks the blocks in the one-block-wide doorway ahead of him (feet, knees, head) that are not
+    /// harder than `max_hardness`. Air, fluids and unbreakable blocks (hardness below 0) are left.
+    fn break_ahead(game: &mut crate::game::Game<'_>, dim: &str, from: [f64; 3], towards: [f64; 3], max_hardness: f32) {
+        let (dx, dz) = (towards[0] - from[0], towards[2] - from[2]);
+        let len = (dx * dx + dz * dz).sqrt();
+        if len < 1e-6 {
+            return;
+        }
+        let (ax, az) = ((from[0] + dx / len * 1.2).floor() as i32, (from[2] + dz / len * 1.2).floor() as i32);
+        let base = from[1].floor() as i32;
+        let air = game.res.facts().air;
+        for dy in 0..3 {
+            let pos = [ax, base + dy, az];
+            let state = game.world.block(pos[0], pos[1], pos[2]);
+            let (breakable, solid) = {
+                let f = game.res.facts().get(state);
+                (f.hardness >= 0.0 && f.hardness <= max_hardness, f.full_collision)
+            };
+            if solid && breakable {
+                game.native_set_block(dim, pos, air, 3);
+            }
+        }
+    }
+
+    /// Climbs: when a solid block is straight ahead of him at his feet, pushes him up and a little
+    /// towards the player, so that he goes up a wall as a spider would.
+    fn climb(game: &mut crate::game::Game<'_>, dim: &str, id: u32, from: [f64; 3], towards: [f64; 3]) {
+        let (dx, dz) = (towards[0] - from[0], towards[2] - from[2]);
+        let len = (dx * dx + dz * dz).sqrt();
+        if len < 1e-6 {
+            return;
+        }
+        let (ux, uz) = (dx / len, dz / len);
+        let (ax, az) = ((from[0] + ux * 0.9).floor() as i32, (from[2] + uz * 0.9).floor() as i32);
+        let ahead = game.world.block(ax, from[1].floor() as i32, az);
+        if game.res.facts().get(ahead).full_collision {
+            game.native_push_mob(dim, id, [ux * 0.12, 0.5, uz * 0.12]);
+        }
+    }
+
     use crate::game::native_the_man_from_the_fog_fog as fog;
     use crate::game::native_the_man_from_the_fog_runtime as rt;
     use crate::game::native_the_man_from_the_fog_state as st;
@@ -192,64 +251,5 @@ fn the_man_from_the_fog_player(game: &mut crate::game::Game<'_>) {
                 game.native_play_sound_in_place(sound, feet, 5, 1.0, pitch);
             }
         }
-    }
-}
-
-/// Whether nothing solid stands between `from` and `to` (sampled every half block).
-fn clear_line(game: &crate::game::Game<'_>, from: [f64; 3], to: [f64; 3]) -> bool {
-    let d = [to[0] - from[0], to[1] - from[1], to[2] - from[2]];
-    let len = (d[0] * d[0] + d[1] * d[1] + d[2] * d[2]).sqrt();
-    if len < 1.0 {
-        return true;
-    }
-    let steps = (len / 0.5).ceil() as i32;
-    for i in 1..steps {
-        let t = f64::from(i) / f64::from(steps);
-        let (x, y, z) = (from[0] + d[0] * t, from[1] + d[1] * t, from[2] + d[2] * t);
-        let state = game.world.block(x.floor() as i32, y.floor() as i32, z.floor() as i32);
-        if game.res.facts().get(state).can_occlude {
-            return false;
-        }
-    }
-    true
-}
-
-/// Breaks the blocks in the one-block-wide doorway ahead of him (feet, knees, head) that are not
-/// harder than `max_hardness`. Air, fluids and unbreakable blocks (hardness below 0) are left.
-fn break_ahead(game: &mut crate::game::Game<'_>, dim: &str, from: [f64; 3], towards: [f64; 3], max_hardness: f32) {
-    let (dx, dz) = (towards[0] - from[0], towards[2] - from[2]);
-    let len = (dx * dx + dz * dz).sqrt();
-    if len < 1e-6 {
-        return;
-    }
-    let (ax, az) = ((from[0] + dx / len * 1.2).floor() as i32, (from[2] + dz / len * 1.2).floor() as i32);
-    let base = from[1].floor() as i32;
-    let air = game.res.facts().air;
-    for dy in 0..3 {
-        let pos = [ax, base + dy, az];
-        let state = game.world.block(pos[0], pos[1], pos[2]);
-        let (breakable, solid) = {
-            let f = game.res.facts().get(state);
-            (f.hardness >= 0.0 && f.hardness <= max_hardness, f.full_collision)
-        };
-        if solid && breakable {
-            game.native_set_block(dim, pos, air, 3);
-        }
-    }
-}
-
-/// Climbs: when a solid block is straight ahead of him at his feet, pushes him up and a little
-/// towards the player, so that he goes up a wall as a spider would.
-fn climb(game: &mut crate::game::Game<'_>, dim: &str, id: u32, from: [f64; 3], towards: [f64; 3]) {
-    let (dx, dz) = (towards[0] - from[0], towards[2] - from[2]);
-    let len = (dx * dx + dz * dz).sqrt();
-    if len < 1e-6 {
-        return;
-    }
-    let (ux, uz) = (dx / len, dz / len);
-    let (ax, az) = ((from[0] + ux * 0.9).floor() as i32, (from[2] + uz * 0.9).floor() as i32);
-    let ahead = game.world.block(ax, from[1].floor() as i32, az);
-    if game.res.facts().get(ahead).full_collision {
-        game.native_push_mob(dim, id, [ux * 0.12, 0.5, uz * 0.12]);
     }
 }
