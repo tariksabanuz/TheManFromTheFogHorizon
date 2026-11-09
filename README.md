@@ -70,3 +70,9 @@ there is no jumpscare screen. To make them from your own copy of the original's 
 `python3 tools/prepare_jumpscare.py PATH/TO/TheManFromTheFog`; the next `python3 tools/package.py` puts them in the
 `.hmod`. `local-assets/` is not committed.
 
+
+## Resource pack
+
+`python3 tools/build_resource_pack.py` writes `target/The-Man-From-The-Fog-Pack.zip`: the same sounds,
+`sounds.json`, language file and jumpscare frames that go into the `.hmod`, as a Horizon resource pack. Put it in
+`resourcepacks/` and pick it on the Resource Packs screen if the `.hmod` alone does not bring them in.
