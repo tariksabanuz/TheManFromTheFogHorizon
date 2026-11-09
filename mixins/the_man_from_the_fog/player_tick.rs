@@ -75,7 +75,7 @@ fn the_man_from_the_fog_player(game: &mut crate::game::Game<'_>) {
     let dim: String = game.dim.id().to_owned();
     let day_time: i64 = game.world.day_time;
     let eye = [feet[0], feet[1] + 1.62, feet[2]];
-    let view = view_vector(yaw, pitch);
+    let view = crate::game::view_vector(yaw, pitch);
 
     let cfg = st::with(|s| s.config());
     let mut mob_id = st::with(|s| s.mob_of(key));
@@ -164,7 +164,7 @@ fn the_man_from_the_fog_player(game: &mut crate::game::Game<'_>) {
                         mob_id = Some(id);
                         game.native_play_sound_in_place("minecraft:ambient.cave", feet, 5, 1.0, 0.7);
                         if cfg.lightning {
-                            game.native_lightning_bolt(&dim, at, true);
+                            game.spawn_bolt(at, true);
                         }
                     }
                     None => st::with(|s| s.spawn_failed(key)),
@@ -233,7 +233,7 @@ fn the_man_from_the_fog_player(game: &mut crate::game::Game<'_>) {
                 if let Some(id) = mob_id {
                     if let Some(m) = game.native_mob(&dim, id) {
                         if with_lightning {
-                            game.native_lightning_bolt(&dim, m.pos, true);
+                            game.spawn_bolt(m.pos, true);
                         }
                     }
                     game.native_remove_mob(&dim, id);
