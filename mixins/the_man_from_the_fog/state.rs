@@ -15,6 +15,10 @@ pub struct State {
     pub cfg: Config,
     fogs: HashMap<u128, Fog>,
     summon: bool,
+    /// When the jumpscare screen began, if it is up.
+    scare: Option<std::time::Instant>,
+    /// Whether the jumpscare picture has been sent to the HUD atlas.
+    scare_uploaded: bool,
     clock: u64,
     /// The mob that is his body, by player.
     mobs: HashMap<u128, u32>,
@@ -61,7 +65,7 @@ fn on_off(v: bool) -> &'static str {
 
 impl State {
     pub fn new(dir: PathBuf) -> State {
-        State { dir, loaded: false, cfg: Config::default(), fogs: HashMap::new(), summon: false, clock: 0, mobs: HashMap::new() }
+        State { dir, loaded: false, cfg: Config::default(), fogs: HashMap::new(), summon: false, scare: None, scare_uploaded: false, clock: 0, mobs: HashMap::new() }
     }
 
     fn ensure_loaded(&mut self) {
@@ -166,6 +170,30 @@ impl State {
             .duration_since(std::time::UNIX_EPOCH)
             .map_or(0, |d| d.as_nanos() as u64);
         nanos ^ (key as u64) ^ ((key >> 64) as u64).rotate_left(17) ^ self.clock.rotate_left(33)
+    }
+
+    // ---- the jumpscare screen ----
+
+    pub fn start_scare(&mut self) {
+        self.scare = Some(std::time::Instant::now());
+    }
+
+    /// Milliseconds since the scare began, or None when none is up (and forgets one that ended).
+    pub fn scare_elapsed_ms(&mut self) -> Option<u64> {
+        let ms = self.scare?.elapsed().as_millis() as u64;
+        if ms >= super::native_the_man_from_the_fog_scare::DURATION_MS {
+            self.scare = None;
+            return None;
+        }
+        Some(ms)
+    }
+
+    pub fn scare_needs_upload(&self) -> bool {
+        !self.scare_uploaded
+    }
+
+    pub fn mark_scare_uploaded(&mut self) {
+        self.scare_uploaded = true;
     }
 
     /// One tick for the player `key`.

@@ -1,6 +1,6 @@
 [mod]
 id = "the_man_from_the_fog"
-version = "0.1.5"
+version = "0.1.6"
 priority = 100
 
 [compatibility]
@@ -29,6 +29,12 @@ id = "runtime"
 file = "crates/horizon-client/src/game.rs"
 name = "native_the_man_from_the_fog_runtime"
 source = "runtime.rs"
+
+[[module]]
+id = "scare"
+file = "crates/horizon-client/src/game.rs"
+name = "native_the_man_from_the_fog_scare"
+source = "scare.rs"
 
 [[module]]
 id = "state"
@@ -134,5 +140,25 @@ bindings = [
   { name = "game", ty = "&crate::game::Game<'_>", value = "self" },
   { name = "entity_id", ty = "u32", value = "entity_id" },
   { name = "visible", ty = "&mut bool", value = "&mut *visible" },
+]
+
+# The jumpscare screen (the client): the picture is sent once, then drawn over everything.
+[[injection]]
+id = "scare_upload"
+hook = "frame"
+hook_version = 1
+kind = "HEAD"
+helper = "scare_upload.rs"
+bindings = [{ name = "game", ty = "&mut crate::game::Game<'_>", value = "&mut *self" }]
+
+[[injection]]
+id = "scare_draw"
+hook = "gui_render_post"
+hook_version = 1
+kind = "HEAD"
+helper = "scare_draw.rs"
+bindings = [
+  { name = "game", ty = "&crate::game::Game<'_>", value = "self" },
+  { name = "batch", ty = "&mut horizon_client::hud::HudBatch", value = "&mut *batch" },
 ]
 

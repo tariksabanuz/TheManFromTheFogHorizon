@@ -227,6 +227,7 @@ fn the_man_from_the_fog_player(game: &mut crate::game::Game<'_>) {
             }
             fog::Action::Jumpscare => {
                 game.native_play_sound_in_place("the_man_from_the_fog:jumpscare", feet, 5, 1.0, 1.0);
+                st::with(|s| s.start_scare());
                 game.add_player_effect(horizon_client::effects::EffectInstance::new("darkness", 60, 0));
             }
             fog::Action::Remove { with_lightning } => {

@@ -44,6 +44,18 @@ def package():
     for path in sorted(bundle.iterdir()):
         if path.is_file() and path.suffix in ('.rs', '.toml'):
             files[path.relative_to(ROOT).as_posix()] = path.read_bytes()
+    # The bundle's data files (compiled in with `native_data!`). A file of the same name in `local-assets/`
+    # (not in the repository: see tools/prepare_jumpscare.py) replaces the shipped stand-in.
+    data = bundle / 'data'
+    if data.is_dir():
+        for path in sorted(data.rglob('*')):
+            if path.is_file():
+                relative = path.relative_to(data)
+                local = ROOT / 'local-assets' / relative
+                source = local if local.is_file() else path
+                files[(path.relative_to(ROOT)).as_posix()] = source.read_bytes()
+                if source is local:
+                    print(f'using local-assets/{relative.as_posix()}')
     out = ROOT / 'target' / f"{mod['id']}-{mod['version']}.hnmod"
     out.parent.mkdir(parents=True, exist_ok=True)
     with zipfile.ZipFile(out, 'w', compression=zipfile.ZIP_DEFLATED) as archive:

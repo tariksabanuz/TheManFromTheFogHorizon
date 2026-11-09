@@ -15,5 +15,6 @@ module!(native_the_man_from_the_fog_config, "config.rs");
 module!(native_the_man_from_the_fog_fog, "fog.rs");
 module!(native_the_man_from_the_fog_model, "model.rs");
 module!(native_the_man_from_the_fog_runtime, "runtime.rs");
+module!(native_the_man_from_the_fog_scare, "scare.rs");
 module!(native_the_man_from_the_fog_state, "state.rs");
 module!(native_the_man_from_the_fog_view, "view.rs");

@@ -28,14 +28,14 @@ Options > Mods > The Man From The Fog has buttons for the original's options (`s
 `the-man-from-the-fog/config.txt`, where every key can also be edited by hand (`min_chase_duration`,
 `max_chase_duration` and `vanish_distance` too).
 
-## Status: 0.1.5, early
+## Status: 0.1.6, early
 
 The behaviour (`fog.rs`), settings, model data and fog maths are plain Rust with 51 unit tests. The wiring to
 Horizon's hooks (`player_tick.rs`, `mob_draw.rs`, `fog_view.rs`, `sleep_block.rs`) was written against the pinned
 Horizon source but **has not been built in a real Horizon checkout yet** (the build environment had no network).
 Report launcher errors as issues.
 
-Not in 0.1.5, and why: his own sounds (the original's sound files are not available to a clean-room port, so
+Not in 0.1.6, and why: his own sounds (the original's sound files are not available to a clean-room port, so
 vanilla sounds are used); the full-screen jumpscare on the killing blow (`jumpscare`); crawling through one-block
 gaps; his fights with iron golems; the original's later additions (Hanging Man, cultists, Tear of the Man, cassettes,
 which only one unverified source describes); dedicated servers (single player and LAN host only).
@@ -59,3 +59,12 @@ The mod plays its sounds as events in the namespace `the_man_from_the_fog` (`spa
 work. Put your own `.ogg` files in a folder and run `python3 tools/build_sound_pack.py FOLDER`. That writes
 `target/The-Man-From-The-Fog-Sounds.zip`, a resource pack to turn on in Horizon. Files are matched to events by a
 word in their name (see the table at the top of the script); an event with no sound plays nothing.
+
+## The jumpscare screen
+
+When he reaches you the screen flashes black, shows a picture that flickers between two frames, shakes, and fades
+out (`scare.rs`). The picture is not in this repository (it is someone else's artwork). Without it the screen only
+flashes black. To use your own copy of the original's images, run
+`python3 tools/prepare_jumpscare.py PATH/TO/TheManFromTheFog`, which writes `local-assets/jumpscare.rgba`; the
+next `python3 tools/package.py` puts it in the `.hnmod`. `local-assets/` is not committed.
+
