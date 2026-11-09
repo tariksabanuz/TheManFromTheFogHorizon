@@ -91,7 +91,30 @@ pub enum Cue {
     Appear,
     Step,
     Chase,
+    /// The chase's own sound, repeated while he hunts.
+    ChaseLoop,
     Vanish,
+    /// A whisper now and then while he watches.
+    Whisper,
+}
+
+impl Cue {
+    /// The sound event the resource pack `tools/sound-pack` defines (namespace `the_man_from_the_fog`).
+    pub fn event(self) -> &'static str {
+        match self {
+            Cue::Appear => "the_man_from_the_fog:spawn",
+            Cue::Step => "the_man_from_the_fog:step",
+            Cue::Chase => "the_man_from_the_fog:spotted",
+            Cue::ChaseLoop => "the_man_from_the_fog:chase",
+            Cue::Vanish => "the_man_from_the_fog:vanish",
+            Cue::Whisper => "the_man_from_the_fog:whisper",
+        }
+    }
+
+    /// Whether the sound is heard from where he stands (mono files) rather than at the player's ears.
+    pub fn from_him(self) -> bool {
+        matches!(self, Cue::Appear | Cue::Step | Cue::Vanish | Cue::Whisper)
+    }
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -132,10 +155,16 @@ pub struct Fog {
     last_pos: Option<V3>,
     still: u32,
     scared: bool,
+    whisper_in: u32,
+    loop_in: u32,
 }
 
 /// Blocks in front of the player where "Summon him now" puts him.
 pub const SUMMON_DISTANCE: f64 = 4.0;
+/// Ticks until the chase sound first repeats (the opening sound is about 7 s), and between repeats
+/// (the chase sound is about 5.4 s).
+const CHASE_LOOP_FIRST: u32 = 140;
+const CHASE_LOOP_EVERY: u32 = 108;
 
 pub fn is_night(day_time: i64) -> bool {
     (13_000..=23_000).contains(&day_time.rem_euclid(24_000))
@@ -201,6 +230,8 @@ impl Fog {
             last_pos: None,
             still: 0,
             scared: false,
+            whisper_in: 0,
+            loop_in: 0,
         }
     }
 
@@ -217,6 +248,7 @@ impl Fog {
     /// The game placed him.
     pub fn spawned(&mut self) {
         self.phase = Phase::Watching;
+        self.whisper_in = self.rng.range(300, 900);
         self.unseen = 0;
         self.gaze = 0;
         self.since_step = 0;
@@ -249,6 +281,7 @@ impl Fog {
         self.hunt_tick = 0;
         self.still = 0;
         self.scared = false;
+        self.loop_in = CHASE_LOOP_FIRST;
         self.last_pos = None;
         out.push(Action::Sound(Cue::Chase));
         if cfg.darkness_effect {
@@ -333,6 +366,12 @@ impl Fog {
                     self.gaze = 0;
                     self.unseen += 1;
                 }
+                if self.whisper_in > 0 {
+                    self.whisper_in -= 1;
+                } else {
+                    out.push(Action::Sound(Cue::Whisper));
+                    self.whisper_in = self.rng.range(700, 1_800);
+                }
                 out.push(Action::Face(s.player));
                 if self.unseen >= cfg.approach_after + cfg.chase_after {
                     self.begin_chase(cfg, &mut out);
@@ -360,6 +399,12 @@ impl Fog {
                     return out;
                 }
                 self.chase_left -= 1;
+                if self.loop_in > 0 {
+                    self.loop_in -= 1;
+                } else {
+                    out.push(Action::Sound(Cue::ChaseLoop));
+                    self.loop_in = CHASE_LOOP_EVERY;
+                }
                 self.hunt_tick += 1;
                 if self.hunt_tick >= 5 {
                     self.hunt_tick = 0;
@@ -864,5 +909,51 @@ mod tests {
         // Seeing the player he still breaks.
         let acts = stuck_chase(&c, true, 60);
         assert!(acts.contains(&Action::BreakAhead { search: false }));
+    }
+
+    #[test]
+    fn every_cue_names_a_sound_event_in_the_mods_namespace() {
+        let all = [Cue::Appear, Cue::Step, Cue::Chase, Cue::ChaseLoop, Cue::Vanish, Cue::Whisper];
+        let mut seen = std::collections::HashSet::new();
+        for c in all {
+            let e = c.event();
+            assert!(e.starts_with("the_man_from_the_fog:") && e.len() > 21, "{e}");
+            assert!(seen.insert(e), "{e} is used twice");
+        }
+    }
+
+    #[test]
+    fn he_whispers_now_and_then_while_watching() {
+        let mut c = cfg();
+        c.approach_after = 20_000;
+        c.chase_after = 20_000;
+        let mut f = Fog::new(11, &c);
+        run_to_watching(&mut f, &c);
+        let mut whispers = 0;
+        for _ in 0..3_000 {
+            let out = f.tick(&c, &sense(Some(MobSense { pos: [0.0, 0.0, 30.0], in_sight: false }), SOUTH, NIGHT), false);
+            whispers += out.iter().filter(|a| **a == Action::Sound(Cue::Whisper)).count();
+            if f.phase != Phase::Watching {
+                break;
+            }
+        }
+        assert!(whispers >= 1, "no whisper in 3000 ticks ({whispers})");
+    }
+
+    #[test]
+    fn the_chase_sound_repeats_while_he_hunts() {
+        let mut c = cfg();
+        c.chase_min = 1_000;
+        c.chase_max = 1_000;
+        let mut f = Fog::new(12, &c);
+        run_to_watching(&mut f, &c);
+        let mut out = Vec::new();
+        f.begin_chase(&c, &mut out);
+        let mut loops = 0;
+        for _ in 0..500 {
+            let o = f.tick(&c, &sense(Some(MobSense { pos: [0.0, 0.0, 20.0], in_sight: true }), SOUTH, NIGHT), false);
+            loops += o.iter().filter(|a| **a == Action::Sound(Cue::ChaseLoop)).count();
+        }
+        assert!(loops >= 3, "{loops}");
     }
 }

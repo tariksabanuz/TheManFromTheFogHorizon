@@ -162,7 +162,7 @@ fn the_man_from_the_fog_player(game: &mut crate::game::Game<'_>) {
                             s.spawned(key);
                         });
                         mob_id = Some(id);
-                        game.native_play_sound_in_place("minecraft:ambient.cave", feet, 5, 1.0, 0.7);
+                        game.native_play_sound_in_place(fog::Cue::Appear.event(), at, 5, 1.0, 1.0);
                         if cfg.lightning {
                             game.spawn_bolt(at, true);
                         }
@@ -226,7 +226,7 @@ fn the_man_from_the_fog_player(game: &mut crate::game::Game<'_>) {
                 game.add_player_effect(horizon_client::effects::EffectInstance::new("darkness", 100, 0));
             }
             fog::Action::Jumpscare => {
-                game.native_play_sound_in_place("minecraft:entity.ghast.scream", feet, 5, 2.0, 0.6);
+                game.native_play_sound_in_place("the_man_from_the_fog:jumpscare", feet, 5, 1.0, 1.0);
                 game.add_player_effect(horizon_client::effects::EffectInstance::new("darkness", 60, 0));
             }
             fog::Action::Remove { with_lightning } => {
@@ -242,13 +242,13 @@ fn the_man_from_the_fog_player(game: &mut crate::game::Game<'_>) {
                 mob_id = None;
             }
             fog::Action::Sound(cue) => {
-                let (sound, pitch) = match cue {
-                    fog::Cue::Appear => ("minecraft:ambient.cave", 0.7),
-                    fog::Cue::Step => ("minecraft:entity.enderman.stare", 0.6),
-                    fog::Cue::Chase => ("minecraft:entity.ghast.scream", 0.5),
-                    fog::Cue::Vanish => ("minecraft:entity.enderman.teleport", 0.5),
+                // From where he stands for the mono sounds, so they carry; at the player's ears for the rest.
+                let at = if cue.from_him() {
+                    mob_id.and_then(|id| game.native_mob(&dim, id)).map_or(feet, |m| m.pos)
+                } else {
+                    feet
                 };
-                game.native_play_sound_in_place(sound, feet, 5, 1.0, pitch);
+                game.native_play_sound_in_place(cue.event(), at, 5, 1.0, 1.0);
             }
         }
     }
