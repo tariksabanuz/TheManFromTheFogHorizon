@@ -26,6 +26,13 @@ fn the_man_from_the_fog_player(game: &mut crate::game::Game<'_>) {
 
     /// Breaks the blocks in the one-block-wide doorway ahead of him (feet, knees, head) that are not
     /// harder than `max_hardness`. Air, fluids and unbreakable blocks (hardness below 0) are left.
+    // The window plays it for this player (a mod's own event from its sounds.json); a server plays it in place.
+    fn play(game: &mut crate::game::Game<'_>, event: &str, at: [f64; 3]) {
+        if !game.native_play_local_sound(event, at, 1.0, 1.0, 0) {
+            game.native_play_sound_in_place(event, at, 5, 1.0, 1.0);
+        }
+    }
+
     fn break_ahead(game: &mut crate::game::Game<'_>, dim: &str, from: [f64; 3], towards: [f64; 3], max_hardness: f32) {
         let (dx, dz) = (towards[0] - from[0], towards[2] - from[2]);
         let len = (dx * dx + dz * dz).sqrt();
@@ -164,7 +171,7 @@ fn the_man_from_the_fog_player(game: &mut crate::game::Game<'_>) {
                             s.spawned(key);
                         });
                         mob_id = Some(id);
-                        game.native_play_sound_in_place(fog::Cue::Appear.event(), at, 5, 1.0, 1.0);
+                        play(game, fog::Cue::Appear.event(), at);
                         if cfg.lightning {
                             game.spawn_bolt(at, true);
                         }
@@ -225,12 +232,11 @@ fn the_man_from_the_fog_player(game: &mut crate::game::Game<'_>) {
             }
             fog::Action::Darkness => {
                 // `darkness_effect`: five seconds of Darkness as the hunt begins.
-                game.add_player_effect(horizon_client::effects::EffectInstance::new("darkness", 100, 0));
+                game.add_player_effect(horizon_client::effects::EffectInstance::new("darkness", 40, 0));
             }
             fog::Action::Jumpscare => {
-                game.native_play_sound_in_place("the_man_from_the_fog:jumpscare", feet, 5, 1.0, 1.0);
+                play(game, "the_man_from_the_fog:jumpscare", feet);
                 st::with(|s| s.start_scare());
-                game.add_player_effect(horizon_client::effects::EffectInstance::new("darkness", 60, 0));
             }
             fog::Action::Remove { with_lightning } => {
                 if let Some(id) = mob_id {
@@ -251,7 +257,7 @@ fn the_man_from_the_fog_player(game: &mut crate::game::Game<'_>) {
                 } else {
                     feet
                 };
-                game.native_play_sound_in_place(cue.event(), at, 5, 1.0, 1.0);
+                play(game, cue.event(), at);
             }
         }
     }
