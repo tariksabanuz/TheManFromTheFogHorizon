@@ -166,6 +166,10 @@ fn the_man_from_the_fog_player(game: &mut crate::game::Game<'_>) {
                 // `darkness_effect`: five seconds of Darkness as the hunt begins.
                 game.add_player_effect(horizon_client::effects::EffectInstance::new("darkness", 100, 0));
             }
+            fog::Action::Jumpscare => {
+                game.native_play_sound_in_place("minecraft:entity.ghast.scream", feet, 5, 2.0, 0.6);
+                game.add_player_effect(horizon_client::effects::EffectInstance::new("darkness", 60, 0));
+            }
             fog::Action::Remove { with_lightning } => {
                 if let Some(id) = mob_id {
                     if let Some(m) = game.native_mob(&dim, id) {

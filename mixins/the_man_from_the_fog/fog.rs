@@ -113,6 +113,8 @@ pub enum Action {
     /// Take him away. `with_lightning` also strikes a harmless bolt where he stood.
     Remove { with_lightning: bool },
     Sound(Cue),
+    /// He has reached the player in a hunt (`jumpscare`).
+    Jumpscare,
 }
 
 #[derive(Clone, Debug)]
@@ -129,6 +131,7 @@ pub struct Fog {
     hunt_tick: u32,
     last_pos: Option<V3>,
     still: u32,
+    scared: bool,
 }
 
 pub fn is_night(day_time: i64) -> bool {
@@ -194,6 +197,7 @@ impl Fog {
             hunt_tick: 0,
             last_pos: None,
             still: 0,
+            scared: false,
         }
     }
 
@@ -241,6 +245,7 @@ impl Fog {
         self.since_break = 0;
         self.hunt_tick = 0;
         self.still = 0;
+        self.scared = false;
         self.last_pos = None;
         out.push(Action::Sound(Cue::Chase));
         if cfg.darkness_effect {
@@ -363,6 +368,10 @@ impl Fog {
                 self.last_pos = Some(mob.pos);
                 self.since_break += 1;
                 let dist = length(sub(mob.pos, s.player));
+                if cfg.jumpscare && !self.scared && dist < 2.5 {
+                    self.scared = true;
+                    out.push(Action::Jumpscare);
+                }
                 // Out of the player's sight and far enough away: he fades.
                 if !mob.in_sight && dist > cfg.vanish_distance {
                     out.push(Action::Remove { with_lightning: false });

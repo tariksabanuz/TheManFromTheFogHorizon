@@ -48,6 +48,9 @@ pub struct Config {
     pub break_interval: u32,
     /// `climbing`: he climbs walls while hunting.
     pub climbing: bool,
+    /// `jumpscare`: a scare (loud scream, brief darkness) when he reaches you in a hunt. The original
+    /// shows a full-screen image on the killing blow; this port cannot draw one.
+    pub jumpscare: bool,
     /// `darkness_effect`: a hunt starts with the Darkness effect on the player.
     pub darkness_effect: bool,
     /// `enable_fog`: the fog thickens as he comes close.
@@ -82,6 +85,7 @@ impl Default for Config {
             break_interval: 8,
             climbing: true,
             darkness_effect: true,
+            jumpscare: true,
             enable_fog: true,
             fog_alpha_value: 0.6,
             lightning: true,
@@ -135,7 +139,7 @@ impl Config {
              min_chase_duration={}\nmax_chase_duration={}\nvanish_chance={}\nvanish_distance={}\n\
              despawn_distance={}\nbreak_blocks={}\nblock_hardness={}\nsearch_mechanic={}\n\
              block_hardness_search={}\nbreak_interval={}\nclimbing={}\ndarkness_effect={}\n\
-             enable_fog={}\nfog_alpha_value={}\nlightning={}\n",
+             enable_fog={}\nfog_alpha_value={}\nlightning={}\njumpscare={}\n",
             self.enabled,
             rate,
             self.spawn_min,
@@ -161,6 +165,7 @@ impl Config {
             self.enable_fog,
             self.fog_alpha_value,
             self.lightning,
+            self.jumpscare,
         )
     }
 
@@ -206,6 +211,7 @@ impl Config {
                 "enable_fog" => set_bool(&mut self.enable_fog, value),
                 "fog_alpha_value" => set_num(&mut self.fog_alpha_value, value),
                 "lightning" => set_bool(&mut self.lightning, value),
+                "jumpscare" => set_bool(&mut self.jumpscare, value),
                 _ => {}
             }
         }
@@ -253,6 +259,7 @@ mod tests {
         assert_eq!((c.chase_min, c.chase_max), (400, 1_000));
         assert_eq!(c.vanish_distance, 30.0);
         assert!(!c.spawn_at_day && !c.all_dimensions);
+        assert!(c.jumpscare);
         assert!(c.break_blocks && c.climbing && c.darkness_effect && c.search_mechanic && c.enable_fog);
         assert_eq!(c.block_hardness, 2.0);
         assert_eq!(c.rate_index(), Some(1)); // normal
@@ -321,5 +328,13 @@ mod tests {
         assert_eq!(c.rate_index(), Some(1));
         c.spawn_min = 777;
         assert_eq!(c.rate_index(), None);
+    }
+
+    #[test]
+    fn jumpscare_is_read_and_written() {
+        let mut c = Config::default();
+        c.load_text("jumpscare=false");
+        assert!(!c.jumpscare);
+        assert!(c.to_text().contains("jumpscare=false"));
     }
 }
