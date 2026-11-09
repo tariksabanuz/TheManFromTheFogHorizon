@@ -421,7 +421,7 @@ impl Fog {
                 self.last_pos = Some(mob.pos);
                 self.since_break += 1;
                 let dist = length(sub(mob.pos, s.player));
-                if cfg.jumpscare && !self.scared && dist < 2.5 {
+                if cfg.jumpscare && !self.scared && dist < 7.0 {
                     self.scared = true;
                     out.push(Action::Jumpscare);
                 }

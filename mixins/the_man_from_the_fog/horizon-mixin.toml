@@ -1,6 +1,6 @@
 [mod]
 id = "the_man_from_the_fog"
-version = "0.1.9"
+version = "0.1.10"
 priority = 100
 
 [compatibility]

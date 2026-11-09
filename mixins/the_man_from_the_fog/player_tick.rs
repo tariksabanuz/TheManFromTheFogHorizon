@@ -121,7 +121,9 @@ fn the_man_from_the_fog_player(game: &mut crate::game::Game<'_>) {
     // He hits: 15 damage about once a second while he hunts and is within reach.
     if let Some(id) = mob_id {
         let hunting = game.mobs.iter().any(|m| m.id == id && !m.no_ai && !m.removed);
-        if hunting && st::with(|s| s.next_clock()) % 20 == 0 {
+        // Not while the scare is on screen: he hits after it, so it is seen before the death screen.
+        let scaring = st::with(|s| s.scare_elapsed_ms()).is_some();
+        if hunting && !scaring && st::with(|s| s.next_clock()) % 20 == 0 {
             if let Some(m) = game.native_mob(&dim, id) {
                 let (dx, dy, dz) = (m.pos[0] - feet[0], m.pos[1] - feet[1], m.pos[2] - feet[2]);
                 if (dx * dx + dz * dz).sqrt() < 2.6 && dy.abs() < 3.5 {

@@ -28,14 +28,14 @@ Options > Mods > The Man From The Fog has buttons for the original's options (`s
 `the-man-from-the-fog/config.txt`, where every key can also be edited by hand (`min_chase_duration`,
 `max_chase_duration` and `vanish_distance` too).
 
-## Status: 0.1.9, early
+## Status: 0.1.10, early
 
 The behaviour (`fog.rs`), settings, model data and fog maths are plain Rust with 51 unit tests. The wiring to
 Horizon's hooks (`player_tick.rs`, `mob_draw.rs`, `fog_view.rs`, `sleep_block.rs`) was written against the pinned
 Horizon source but **has not been built in a real Horizon checkout yet** (the build environment had no network).
 Report launcher errors as issues.
 
-Not in 0.1.9, and why: his own sounds (the original's sound files are not available to a clean-room port, so
+Not in 0.1.10, and why: his own sounds (the original's sound files are not available to a clean-room port, so
 vanilla sounds are used); the full-screen jumpscare on the killing blow (`jumpscare`); crawling through one-block
 gaps; his fights with iron golems; the original's later additions (Hanging Man, cultists, Tear of the Man, cassettes,
 which only one unverified source describes); dedicated servers (single player and LAN host only).

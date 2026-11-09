@@ -176,6 +176,8 @@ impl State {
 
     pub fn start_scare(&mut self) {
         self.scare = Some(std::time::Instant::now());
+        // The picture goes up again now: a reload of the HUD atlas wipes what was sent at the first frame.
+        self.scare_uploaded = false;
     }
 
     /// Milliseconds since the scare began, or None when none is up (and forgets one that ended).

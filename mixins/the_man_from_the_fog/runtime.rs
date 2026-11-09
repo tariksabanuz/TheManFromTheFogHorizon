@@ -3,7 +3,7 @@
 
 pub const ID: &str = "the_man_from_the_fog";
 pub const NAME: &str = "The Man From The Fog";
-pub const VERSION: &str = "0.1.9";
+pub const VERSION: &str = "0.1.10";
 pub const AUTHOR_LINE: &str = "By tariksabanuz";
 pub const DESCRIPTION: &str = "A stalking horror mob. He watches from far away in the dark, steps closer when you ignore him, and when you meet his eyes he either vanishes or hunts you. Open this page to set how often he comes and what he may break. By tariksabanuz";
 
