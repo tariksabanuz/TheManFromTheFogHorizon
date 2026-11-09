@@ -19,6 +19,7 @@ pub struct State {
     scare: Option<std::time::Instant>,
     /// Whether the jumpscare picture has been sent to the HUD atlas.
     scare_uploaded: bool,
+    scare_seen: bool,
     clock: u64,
     /// The mob that is his body, by player.
     mobs: HashMap<u128, u32>,
@@ -65,7 +66,7 @@ fn on_off(v: bool) -> &'static str {
 
 impl State {
     pub fn new(dir: PathBuf) -> State {
-        State { dir, loaded: false, cfg: Config::default(), fogs: HashMap::new(), summon: false, scare: None, scare_uploaded: false, clock: 0, mobs: HashMap::new() }
+        State { dir, loaded: false, cfg: Config::default(), fogs: HashMap::new(), summon: false, scare: None, scare_uploaded: false, scare_seen: false, clock: 0, mobs: HashMap::new() }
     }
 
     fn ensure_loaded(&mut self) {
@@ -176,6 +177,7 @@ impl State {
 
     pub fn start_scare(&mut self) {
         self.scare = Some(std::time::Instant::now());
+        self.scare_seen = true;
         // The picture goes up again now: a reload of the HUD atlas wipes what was sent at the first frame.
         self.scare_uploaded = false;
     }
@@ -188,6 +190,11 @@ impl State {
             return None;
         }
         Some(ms)
+    }
+
+    /// The scare has been on screen and is over.
+    pub fn scare_finished(&self) -> bool {
+        self.scare_seen && self.scare.is_none()
     }
 
     pub fn scare_needs_upload(&self) -> bool {
@@ -244,6 +251,7 @@ impl State {
 
     pub fn clear_mob(&mut self, key: u128) {
         self.mobs.remove(&key);
+        self.scare_seen = false;
     }
 
     pub fn mob_of(&self, key: u128) -> Option<u32> {

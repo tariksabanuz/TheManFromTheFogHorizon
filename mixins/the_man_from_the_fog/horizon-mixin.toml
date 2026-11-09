@@ -1,6 +1,6 @@
 [mod]
 id = "the_man_from_the_fog"
-version = "0.1.10"
+version = "0.1.11"
 priority = 100
 
 [compatibility]
@@ -142,15 +142,7 @@ bindings = [
   { name = "visible", ty = "&mut bool", value = "&mut *visible" },
 ]
 
-# The jumpscare screen (the client): the picture is sent once, then drawn over everything.
-[[injection]]
-id = "scare_upload"
-hook = "frame"
-hook_version = 1
-kind = "HEAD"
-helper = "scare_upload.rs"
-bindings = [{ name = "game", ty = "&mut crate::game::Game<'_>", value = "&mut *self" }]
-
+# The jumpscare screen (the client): its picture is one of the mod's own GUI textures.
 [[injection]]
 id = "scare_draw"
 hook = "gui_render_post"

@@ -118,20 +118,37 @@ fn the_man_from_the_fog_player(game: &mut crate::game::Game<'_>) {
         }
     }
 
-    // He hits: 15 damage about once a second while he hunts and is within reach.
+    // He hits: 15 damage about once a second while he hunts and is within reach. With the jumpscare on he
+    // waits for it to play out, then the blow kills the player and he goes too, in lightning.
+    let mut killed = false;
     if let Some(id) = mob_id {
         let hunting = game.mobs.iter().any(|m| m.id == id && !m.no_ai && !m.removed);
-        // Not while the scare is on screen: he hits after it, so it is seen before the death screen.
         let scaring = st::with(|s| s.scare_elapsed_ms()).is_some();
-        if hunting && !scaring && st::with(|s| s.next_clock()) % 20 == 0 {
+        let lethal = cfg.jumpscare && st::with(|s| s.scare_finished());
+        if hunting && !scaring && (lethal || !cfg.jumpscare) && st::with(|s| s.next_clock()) % 20 == 0 {
             if let Some(m) = game.native_mob(&dim, id) {
                 let (dx, dy, dz) = (m.pos[0] - feet[0], m.pos[1] - feet[1], m.pos[2] - feet[2]);
-                if (dx * dx + dz * dz).sqrt() < 2.6 && dy.abs() < 3.5 {
+                if (dx * dx + dz * dz).sqrt() < 3.5 && dy.abs() < 3.5 {
                     let me = game.player.as_ref().map_or(0, |p| p.entity_id as u32);
-                    game.native_hurt_entity(&dim, me, rt::DAMAGE, "minecraft:mob_attack", Some(id));
+                    let amount = if lethal { 1000.0 } else { rt::DAMAGE };
+                    let hurt = game.native_hurt_entity(&dim, me, amount, "minecraft:mob_attack", Some(id));
+                    killed = hurt && lethal;
                 }
             }
         }
+    }
+    if killed {
+        if let Some(id) = mob_id {
+            if let Some(m) = game.native_mob(&dim, id) {
+                game.spawn_bolt(m.pos, true);
+            }
+            game.native_remove_mob(&dim, id);
+        }
+        st::with(|s| {
+            s.clear_mob(key);
+            s.lost(key);
+        });
+        return;
     }
 
     let sense = fog::Sense { player: feet, eye, view, day_time, mob: sense_mob };
@@ -174,6 +191,12 @@ fn the_man_from_the_fog_player(game: &mut crate::game::Game<'_>) {
                         });
                         mob_id = Some(id);
                         play(game, fog::Cue::Appear.event(), at);
+                        if !game.audio.engine.registry.contains("the_man_from_the_fog:spawn") {
+                            game.native_chat("The Man From The Fog: his sounds did not load (no the_man_from_the_fog:spawn event).");
+                        }
+                        if !game.gui.atlas.sprites.contains_key("the_man_from_the_fog:gui/jumpscare_1") {
+                            game.native_chat("The Man From The Fog: the jumpscare picture did not load.");
+                        }
                         if cfg.lightning {
                             game.spawn_bolt(at, true);
                         }
