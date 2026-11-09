@@ -22,7 +22,9 @@ fn the_man_from_the_fog_draw(
         if degrees != 0.0 {
             draw.rotate_about([1.0, 0.0, 0.0], degrees, part.pivot);
         }
-        let face = CubeFace { sprite: part.paint.sprite(), uv: None };
+        // Every face samples the middle of its flat-coloured sprite: with no UVs given, Horizon takes the
+        // box's own coordinates, and a box this far from the origin reads outside the sprite.
+        let face = CubeFace { sprite: part.paint.sprite(), uv: Some([4.0, 4.0, 12.0, 12.0]) };
         // Order: down, up, north, south, west, east. South is the way he faces.
         let faces = if part.front_only {
             [None, None, None, Some(face), None, None]

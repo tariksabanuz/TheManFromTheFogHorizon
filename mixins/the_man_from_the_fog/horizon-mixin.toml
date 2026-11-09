@@ -1,6 +1,6 @@
 [mod]
 id = "the_man_from_the_fog"
-version = "0.1.3"
+version = "0.1.4"
 priority = 100
 
 [compatibility]
@@ -122,3 +122,17 @@ bindings = [
   { name = "pos", ty = "[i32; 3]", value = "pos" },
   { name = "problem", ty = "&mut Option<String>", value = "&mut *problem" },
 ]
+
+# No name tag over him (the client).
+[[injection]]
+id = "hide_name"
+hook = "render_name_tag"
+hook_version = 1
+kind = "HEAD"
+helper = "name_tag.rs"
+bindings = [
+  { name = "game", ty = "&crate::game::Game<'_>", value = "self" },
+  { name = "entity_id", ty = "u32", value = "entity_id" },
+  { name = "visible", ty = "&mut bool", value = "&mut *visible" },
+]
+
