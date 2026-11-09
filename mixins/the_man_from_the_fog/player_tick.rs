@@ -1,7 +1,7 @@
 // His whole life, once a tick for each living player (the server's `player_tick`): read the
 // player and the world, ask `fog.rs` what he does, and do it with Horizon's mob and world helpers.
 //
-// His body is a husk made quiet and invulnerable, named `MOB_TAG` so that the client draws the
+// His body is a husk made quiet, with 300 health and a hard hit, named `MOB_TAG` so that the client draws the
 // model of `model.rs` instead. While he only watches, his AI is off and he is moved by hand; a
 // chase switches it on so that he walks, climbs and hits with the husk's own abilities.
 fn the_man_from_the_fog_player(game: &mut crate::game::Game<'_>) {
@@ -19,6 +19,19 @@ fn the_man_from_the_fog_player(game: &mut crate::game::Game<'_>) {
     let view = view_vector(yaw, pitch);
 
     let cfg = st::with(|s| s.config());
+    let mut mob_id = st::with(|s| s.mob_of(key));
+
+    // `all_dimensions` is off by default: he stays in the overworld.
+    if !cfg.all_dimensions && dim != "minecraft:overworld" {
+        if let Some(id) = mob_id {
+            game.native_remove_mob(&dim, id);
+            st::with(|s| {
+                s.clear_mob(key);
+                s.lost(key);
+            });
+        }
+        return;
+    }
 
     // A stalker left in a saved world, or one a switch-off forgot, goes: only the tracked ones stay.
     if st::with(|s| s.next_clock()) % 100 == 0 {
@@ -31,7 +44,6 @@ fn the_man_from_the_fog_player(game: &mut crate::game::Game<'_>) {
     }
 
     // Where he is, and whether the player has a clear line to his head.
-    let mut mob_id = st::with(|s| s.mob_of(key));
     let mut sense_mob = None;
     if let Some(id) = mob_id {
         match game.native_mob(&dim, id) {
@@ -65,10 +77,9 @@ fn the_man_from_the_fog_player(game: &mut crate::game::Game<'_>) {
                 };
                 let spawned = ground.and_then(|y| {
                     let options = crate::game::native_mobs::NativeSpawn {
-                        health: Some(60.0),
+                        health: Some(rt::HEALTH),
                         no_ai: true,
                         silent: true,
-                        invulnerable: true,
                         ..Default::default()
                     };
                     game.native_spawn_mob(&dim, rt::BASE_KIND, [f64::from(bx) + 0.5, f64::from(y), f64::from(bz) + 0.5], &options)
@@ -78,6 +89,13 @@ fn the_man_from_the_fog_player(game: &mut crate::game::Game<'_>) {
                         if let Some(m) = game.mobs.iter_mut().find(|m| m.id == id) {
                             m.custom_name = Some(rt::MOB_TAG.to_owned());
                             m.name_visible = false;
+                            // 300 health and 15 damage, fast and hard to push, as the original's.
+                            m.attrs.max_health = rt::HEALTH;
+                            m.health = rt::HEALTH;
+                            m.attrs.attack_damage = rt::DAMAGE;
+                            m.attrs.speed = rt::SPEED;
+                            m.attrs.follow_range = rt::FOLLOW_RANGE;
+                            m.attrs.knockback_resistance = rt::KNOCKBACK_RESISTANCE;
                         }
                         let at = [f64::from(bx) + 0.5, ground.map_or(feet[1], f64::from), f64::from(bz) + 0.5];
                         st::with(|s| {
@@ -129,12 +147,24 @@ fn the_man_from_the_fog_player(game: &mut crate::game::Game<'_>) {
                     game.native_mob_navigate(&dim, id, feet, 1, 1.5);
                 }
             }
-            fog::Action::BreakAhead => {
+            fog::Action::BreakAhead { search } => {
                 if let Some(id) = mob_id {
                     if let Some(m) = game.native_mob(&dim, id) {
-                        break_ahead(game, &dim, m.pos, feet, cfg.break_hardness);
+                        let hardness = if search { cfg.block_hardness_search } else { cfg.block_hardness };
+                        break_ahead(game, &dim, m.pos, feet, hardness);
                     }
                 }
+            }
+            fog::Action::Climb => {
+                if let Some(id) = mob_id {
+                    if let Some(m) = game.native_mob(&dim, id) {
+                        climb(game, &dim, id, m.pos, feet);
+                    }
+                }
+            }
+            fog::Action::Darkness => {
+                // `darkness_effect`: five seconds of Darkness as the hunt begins.
+                game.add_player_effect(horizon_client::effects::EffectInstance::new("darkness", 100, 0));
             }
             fog::Action::Remove { with_lightning } => {
                 if let Some(id) = mob_id {
@@ -201,5 +231,21 @@ fn break_ahead(game: &mut crate::game::Game<'_>, dim: &str, from: [f64; 3], towa
         if solid && breakable {
             game.native_set_block(dim, pos, air, 3);
         }
+    }
+}
+
+/// Climbs: when a solid block is straight ahead of him at his feet, pushes him up and a little
+/// towards the player, so that he goes up a wall as a spider would.
+fn climb(game: &mut crate::game::Game<'_>, dim: &str, id: u32, from: [f64; 3], towards: [f64; 3]) {
+    let (dx, dz) = (towards[0] - from[0], towards[2] - from[2]);
+    let len = (dx * dx + dz * dz).sqrt();
+    if len < 1e-6 {
+        return;
+    }
+    let (ux, uz) = (dx / len, dz / len);
+    let (ax, az) = ((from[0] + ux * 0.9).floor() as i32, (from[2] + uz * 0.9).floor() as i32);
+    let ahead = game.world.block(ax, from[1].floor() as i32, az);
+    if game.res.facts().get(ahead).full_collision {
+        game.native_push_mob(dim, id, [ux * 0.12, 0.5, uz * 0.12]);
     }
 }

@@ -57,28 +57,59 @@ const fn decal(name: &'static str, from: [f32; 3], to: [f32; 3], paint: Paint) -
 /// Standing height in blocks.
 pub const HEIGHT: f32 = 3.0;
 
-pub const PARTS: [Part; 15] = [
+const SWING_ARM_R: Motion = Motion::Swing { sign: -1.0, amount: 0.6 };
+const SWING_ARM_L: Motion = Motion::Swing { sign: 1.0, amount: 0.6 };
+const SHOULDER_R: [f32; 3] = [-0.28, 2.3, 0.0];
+const SHOULDER_L: [f32; 3] = [0.28, 2.3, 0.0];
+
+/// A bar of the mouth on the chest: red, with a white tooth at its lower end.
+const fn bar(name: &'static str, x0: f32, x1: f32, y0: f32, y1: f32, paint: Paint) -> Part {
+    decal(name, [x0, y0, 2.0], [x1, y1, 2.05], paint)
+}
+
+const fn tooth(name: &'static str, x0: f32, x1: f32, y0: f32, y1: f32) -> Part {
+    decal(name, [x0, y0, 2.05], [x1, y1, 2.1], Paint::Teeth)
+}
+
+/// The photos show: a small square head with two white eyes, a thin torso, arms that hang past the
+/// knees ending in three claws, and across the chest a mouth made of red bars with white teeth,
+/// a row of four under the head and a smile of two side bars and a bottom bar below it.
+pub const PARTS: &[Part] = &[
     // Legs: thin and long, hip at 1.5 blocks.
     body("leg_right", [-3.0, 0.0, -1.0], [-1.0, 24.0, 1.0], [-0.125, 1.5, 0.0], Motion::Swing { sign: 1.0, amount: 0.8 }),
     body("leg_left", [1.0, 0.0, -1.0], [3.0, 24.0, 1.0], [0.125, 1.5, 0.0], Motion::Swing { sign: -1.0, amount: 0.8 }),
-    // Torso.
     body("torso", [-3.5, 24.0, -2.0], [3.5, 38.0, 2.0], [0.0, 0.0, 0.0], Motion::Still),
-    // Head: a small block on a thin neck.
     body("neck", [-1.0, 38.0, -1.0], [1.0, 40.0, 1.0], [0.0, 0.0, 0.0], Motion::Still),
     body("head", [-3.0, 40.0, -3.0], [3.0, 47.0, 3.0], [0.0, 0.0, 0.0], Motion::Still),
-    // Arms hang past the knees, shoulder at 2.3 blocks, and end in long claws.
-    body("arm_right", [-5.5, 6.0, -1.0], [-3.5, 36.0, 1.0], [-0.28, 2.3, 0.0], Motion::Swing { sign: -1.0, amount: 0.6 }),
-    body("arm_left", [3.5, 6.0, -1.0], [5.5, 36.0, 1.0], [0.28, 2.3, 0.0], Motion::Swing { sign: 1.0, amount: 0.6 }),
-    body("claws_right", [-5.5, 1.0, -1.0], [-3.5, 6.0, 1.0], [-0.28, 2.3, 0.0], Motion::Swing { sign: -1.0, amount: 0.6 }),
-    body("claws_left", [3.5, 1.0, -1.0], [5.5, 6.0, 1.0], [0.28, 2.3, 0.0], Motion::Swing { sign: 1.0, amount: 0.6 }),
+    // Arms hang past the knees, shoulder at 2.3 blocks.
+    body("arm_right", [-5.5, 6.0, -1.0], [-3.5, 36.0, 1.0], SHOULDER_R, SWING_ARM_R),
+    body("arm_left", [3.5, 6.0, -1.0], [5.5, 36.0, 1.0], SHOULDER_L, SWING_ARM_L),
+    // Three claws on each hand.
+    body("finger_right_0", [-5.5, 0.0, -0.6], [-4.9, 6.0, 0.6], SHOULDER_R, SWING_ARM_R),
+    body("finger_right_1", [-4.8, 0.0, -0.6], [-4.2, 6.0, 0.6], SHOULDER_R, SWING_ARM_R),
+    body("finger_right_2", [-4.1, 0.0, -0.6], [-3.5, 6.0, 0.6], SHOULDER_R, SWING_ARM_R),
+    body("finger_left_0", [3.5, 0.0, -0.6], [4.1, 6.0, 0.6], SHOULDER_L, SWING_ARM_L),
+    body("finger_left_1", [4.2, 0.0, -0.6], [4.8, 6.0, 0.6], SHOULDER_L, SWING_ARM_L),
+    body("finger_left_2", [4.9, 0.0, -0.6], [5.5, 6.0, 0.6], SHOULDER_L, SWING_ARM_L),
     // Two small white eyes.
     decal("eye_right", [-2.0, 43.0, 3.0], [-1.0, 44.0, 3.05], Paint::Eye),
     decal("eye_left", [1.0, 43.0, 3.0], [2.0, 44.0, 3.05], Paint::Eye),
-    // The mouth across the chest: a red slab, with a row of white teeth above and below.
-    decal("mouth", [-2.5, 28.0, 2.0], [2.5, 35.0, 2.05], Paint::Mouth),
-    decal("teeth_top", [-2.0, 33.0, 2.05], [2.0, 35.0, 2.1], Paint::Teeth),
-    decal("teeth_bottom", [-2.0, 28.0, 2.05], [2.0, 30.0, 2.1], Paint::Teeth),
-    decal("tongue", [-0.5, 30.0, 2.05], [0.5, 33.0, 2.08], Paint::Mouth),
+    // The upper row of the mouth: four red bars with a white tooth at the lower end.
+    bar("mouth_0", -2.4, -1.6, 32.0, 37.0, Paint::Mouth),
+    bar("mouth_1", -0.9, -0.1, 32.0, 37.0, Paint::Mouth),
+    bar("mouth_2", 0.1, 0.9, 32.0, 37.0, Paint::Mouth),
+    bar("mouth_3", 1.6, 2.4, 32.0, 37.0, Paint::Mouth),
+    tooth("tooth_0", -2.4, -1.6, 32.0, 33.5),
+    tooth("tooth_1", -0.9, -0.1, 32.0, 33.5),
+    tooth("tooth_2", 0.1, 0.9, 32.0, 33.5),
+    tooth("tooth_3", 1.6, 2.4, 32.0, 33.5),
+    // The smile below it: a bar at each side and one along the bottom, with white teeth.
+    bar("smile_left", -2.4, -1.6, 27.0, 30.5, Paint::Mouth),
+    bar("smile_right", 1.6, 2.4, 27.0, 30.5, Paint::Mouth),
+    bar("smile_bottom", -1.6, 1.6, 27.0, 28.5, Paint::Mouth),
+    tooth("smile_tooth_left", -2.4, -1.6, 29.0, 30.5),
+    tooth("smile_tooth_right", 1.6, 2.4, 29.0, 30.5),
+    tooth("smile_tooth_mid", -0.4, 0.4, 27.0, 28.5),
 ];
 
 /// Degrees a part swings at this moment of the walk cycle and its idle sway.
@@ -102,7 +133,7 @@ mod tests {
 
     #[test]
     fn boxes_are_well_formed() {
-        for p in PARTS {
+        for p in PARTS.iter() {
             for i in 0..3 {
                 assert!(p.from[i] < p.to[i], "{} axis {i}", p.name);
             }
@@ -117,7 +148,7 @@ mod tests {
         let widest = PARTS.iter().map(|p| p.to[0].max(-p.from[0])).fold(0.0_f32, f32::max);
         assert!(widest / 16.0 < 0.5, "less than a block wide in total ({widest})");
         // His arms reach lower than his hips.
-        let arm = PARTS.iter().find(|p| p.name == "claws_left").unwrap();
+        let arm = PARTS.iter().find(|p| p.name == "finger_left_0").unwrap();
         let hip = PARTS.iter().find(|p| p.name == "leg_left").unwrap().pivot[1];
         assert!(arm.from[1] / 16.0 < hip);
     }
@@ -131,6 +162,24 @@ mod tests {
             assert!(p.from[2] >= host.to[2] - 1.1 && p.to[2] > host.to[2] - 0.01, "{} is on the front face", p.name);
             assert!(p.from[0] >= host.from[0] && p.to[0] <= host.to[0], "{} within the width", p.name);
             assert!(p.from[1] >= host.from[1] && p.to[1] <= host.to[1], "{} within the height", p.name);
+        }
+    }
+
+    #[test]
+    fn he_has_three_claws_on_each_hand_and_a_toothy_mouth() {
+        let count = |prefix: &str| PARTS.iter().filter(|p| p.name.starts_with(prefix)).count();
+        assert_eq!(count("finger_left"), 3);
+        assert_eq!(count("finger_right"), 3);
+        assert_eq!(count("eye_"), 2);
+        assert_eq!(count("mouth_"), 4);
+        assert!(PARTS.iter().any(|p| p.paint == Paint::Teeth));
+        assert!(PARTS.iter().any(|p| p.paint == Paint::Mouth));
+    }
+
+    #[test]
+    fn claws_are_the_only_things_at_the_ground_besides_the_legs() {
+        for p in PARTS.iter().filter(|p| p.from[1] < 1.0) {
+            assert!(p.name.starts_with("finger") || p.name.starts_with("leg"), "{}", p.name);
         }
     }
 

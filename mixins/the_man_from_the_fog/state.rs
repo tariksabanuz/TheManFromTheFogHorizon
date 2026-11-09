@@ -2,7 +2,7 @@
 // mod's page in Options > Mods. Both halves of the game (the window and the single-player server
 // thread) are in one process and share this.
 
-use super::native_the_man_from_the_fog_config::{Config, HARDNESS_STEPS, RATES, VANISH_STEPS};
+use super::native_the_man_from_the_fog_config::{Config, FOG_STEPS, HARDNESS_STEPS, RATES, VANISH_STEPS};
 use super::native_the_man_from_the_fog_fog::{Action, Fog, Sense};
 use super::native_the_man_from_the_fog_runtime as runtime;
 use std::collections::HashMap;
@@ -28,18 +28,28 @@ enum Button {
     Vanish,
     Breaks,
     Hardness,
+    Search,
+    Climbing,
+    Darkness,
+    Fog,
+    AllDimensions,
     Lightning,
     Summon,
     Reset,
 }
 
-const BUTTONS: [Button; 9] = [
+const BUTTONS: [Button; 14] = [
     Button::Enabled,
     Button::DayNight,
     Button::Rate,
     Button::Vanish,
     Button::Breaks,
     Button::Hardness,
+    Button::Search,
+    Button::Climbing,
+    Button::Darkness,
+    Button::Fog,
+    Button::AllDimensions,
     Button::Lightning,
     Button::Summon,
     Button::Reset,
@@ -81,12 +91,23 @@ impl State {
         let c = &self.cfg;
         match b {
             Button::Enabled => format!("The Man From The Fog: {}", on_off(c.enabled)),
-            Button::DayNight => format!("Appears: {}", if c.day_spawns { "day and night" } else { "at night only" }),
-            Button::Rate => format!("How often: {}", c.rate_index().map_or("custom", |i| RATES[i].0)),
+            Button::DayNight => format!("Spawn at day: {}", on_off(c.spawn_at_day)),
+            Button::Rate => format!("Spawn rate: {}", c.rate_index().map_or("custom", |i| RATES[i].0)),
             Button::Vanish => format!("Eye contact makes him vanish: {}%", c.vanish_chance),
-            Button::Breaks => format!("He breaks blocks: {}", on_off(c.break_blocks)),
-            Button::Hardness => format!("Hardest block he breaks: {}", c.break_hardness),
-            Button::Lightning => format!("Lightning when he comes and goes: {}", on_off(c.lightning)),
+            Button::Breaks => format!("Break blocks: {}", on_off(c.break_blocks)),
+            Button::Hardness => format!("Block hardness: {}", c.block_hardness),
+            Button::Search => format!("Search mechanic: {}", on_off(c.search_mechanic)),
+            Button::Climbing => format!("Climbing: {}", on_off(c.climbing)),
+            Button::Darkness => format!("Darkness effect: {}", on_off(c.darkness_effect)),
+            Button::Fog => {
+                if c.enable_fog {
+                    format!("Fog: {:.0}%", c.fog_alpha_value * 100.0)
+                } else {
+                    "Fog: off".to_string()
+                }
+            }
+            Button::AllDimensions => format!("All dimensions: {}", on_off(c.all_dimensions)),
+            Button::Lightning => format!("Lightning: {}", on_off(c.lightning)),
             Button::Summon => "Summon him now".to_string(),
             Button::Reset => "Reset settings".to_string(),
         }
@@ -98,7 +119,7 @@ impl State {
         let c = &mut self.cfg;
         match button {
             Button::Enabled => c.enabled = !c.enabled,
-            Button::DayNight => c.day_spawns = !c.day_spawns,
+            Button::DayNight => c.spawn_at_day = !c.spawn_at_day,
             Button::Rate => {
                 let next = c.rate_index().map_or(0, |i| i + 1);
                 c.set_rate(next);
@@ -108,8 +129,24 @@ impl State {
             }
             Button::Breaks => c.break_blocks = !c.break_blocks,
             Button::Hardness => {
-                c.break_hardness = HARDNESS_STEPS.iter().copied().find(|v| *v > c.break_hardness + 1e-4).unwrap_or(HARDNESS_STEPS[0]);
+                c.block_hardness = HARDNESS_STEPS.iter().copied().find(|v| *v > c.block_hardness + 1e-4).unwrap_or(HARDNESS_STEPS[0]);
             }
+            Button::Search => c.search_mechanic = !c.search_mechanic,
+            Button::Climbing => c.climbing = !c.climbing,
+            Button::Darkness => c.darkness_effect = !c.darkness_effect,
+            Button::Fog => {
+                // off, then 25 / 50 / 75 / 100 %, then off again.
+                if !c.enable_fog {
+                    c.enable_fog = true;
+                    c.fog_alpha_value = FOG_STEPS[1];
+                } else {
+                    match FOG_STEPS.iter().copied().find(|v| *v > c.fog_alpha_value + 1e-4) {
+                        Some(v) => c.fog_alpha_value = v,
+                        None => c.enable_fog = false,
+                    }
+                }
+            }
+            Button::AllDimensions => c.all_dimensions = !c.all_dimensions,
             Button::Lightning => c.lightning = !c.lightning,
             Button::Summon => {
                 c.enabled = true;
@@ -224,16 +261,22 @@ mod tests {
         Sense { player: [0.0, 64.0, 0.0], eye: [0.0, 65.6, 0.0], view: [0.0, 0.0, 1.0], day_time: 18_000, mob: None }
     }
 
+    fn index_of(b: Button) -> usize {
+        BUTTONS.iter().position(|x| *x == b).unwrap()
+    }
+
     #[test]
     fn labels_follow_the_config() {
         let mut s = State::new(temp_dir("labels"));
         let b = s.buttons();
         assert_eq!(b.len(), BUTTONS.len());
-        assert_eq!(b[0], "The Man From The Fog: on");
-        assert_eq!(b[1], "Appears: at night only");
-        assert_eq!(b[2], "How often: normal");
-        assert_eq!(b[3], "Eye contact makes him vanish: 50%");
-        assert_eq!(b[5], "Hardest block he breaks: 3");
+        assert_eq!(b[index_of(Button::Enabled)], "The Man From The Fog: on");
+        assert_eq!(b[index_of(Button::DayNight)], "Spawn at day: off");
+        assert_eq!(b[index_of(Button::Rate)], "Spawn rate: normal");
+        assert_eq!(b[index_of(Button::Vanish)], "Eye contact makes him vanish: 50%");
+        assert_eq!(b[index_of(Button::Hardness)], "Block hardness: 2");
+        assert_eq!(b[index_of(Button::Fog)], "Fog: 60%");
+        assert_eq!(b[index_of(Button::AllDimensions)], "All dimensions: off");
     }
 
     #[test]
@@ -241,23 +284,31 @@ mod tests {
         let dir = temp_dir("clicks");
         let mut s = State::new(dir.clone());
         s.buttons();
-        s.click(0);
-        s.click(1);
-        s.click(2); // normal -> often
-        s.click(3); // 50 -> 75
-        s.click(4);
-        s.click(5); // 3 -> 10
-        s.click(6);
+        for b in [
+            Button::Enabled,
+            Button::DayNight,
+            Button::Rate, // normal -> often
+            Button::Vanish, // 50 -> 75
+            Button::Breaks,
+            Button::Hardness, // 2 -> 3.5
+            Button::Search,
+            Button::Climbing,
+            Button::Darkness,
+            Button::AllDimensions,
+            Button::Lightning,
+        ] {
+            s.click(index_of(b));
+        }
         let c = s.cfg.clone();
-        assert!(!c.enabled && c.day_spawns && !c.break_blocks && !c.lightning);
+        assert!(!c.enabled && c.spawn_at_day && !c.break_blocks && !c.lightning);
+        assert!(!c.search_mechanic && !c.climbing && !c.darkness_effect && c.all_dimensions);
         assert_eq!(c.rate_index(), Some(2));
         assert_eq!(c.vanish_chance, 75);
-        assert_eq!(c.break_hardness, 10.0);
+        assert_eq!(c.block_hardness, 3.5);
         let mut again = State::new(dir.clone());
         again.buttons();
         assert_eq!(again.cfg, c);
-        let last = BUTTONS.len() - 1;
-        again.click(last); // reset
+        again.click(index_of(Button::Reset));
         assert_eq!(again.cfg, Config::default());
         let _ = std::fs::remove_dir_all(dir);
     }
@@ -266,16 +317,29 @@ mod tests {
     fn steppers_wrap() {
         let mut s = State::new(temp_dir("wrap"));
         s.buttons();
-        for _ in 0..4 {
-            s.click(2);
+        for _ in 0..3 {
+            s.click(index_of(Button::Rate));
         }
-        assert_eq!(s.cfg.rate_index(), Some(1)); // 4 clicks: often, constant, rare, normal
+        assert_eq!(s.cfg.rate_index(), Some(1)); // often, rare, normal
         s.cfg.vanish_chance = 100;
-        s.click(3);
+        s.click(index_of(Button::Vanish));
         assert_eq!(s.cfg.vanish_chance, 0);
-        s.cfg.break_hardness = 50.0;
-        s.click(5);
-        assert_eq!(s.cfg.break_hardness, 1.0);
+        s.cfg.block_hardness = 50.0;
+        s.click(index_of(Button::Hardness));
+        assert_eq!(s.cfg.block_hardness, 0.5);
+    }
+
+    #[test]
+    fn fog_button_cycles_through_off() {
+        let mut s = State::new(temp_dir("fogbtn"));
+        s.buttons();
+        let i = index_of(Button::Fog);
+        let mut seen = Vec::new();
+        for _ in 0..6 {
+            s.click(i);
+            seen.push(s.buttons()[i].clone());
+        }
+        assert_eq!(seen, ["Fog: 75%", "Fog: 100%", "Fog: off", "Fog: 25%", "Fog: 50%", "Fog: 75%"]);
     }
 
     #[test]
@@ -292,7 +356,7 @@ mod tests {
         let mut s = State::new(temp_dir("summon"));
         s.cfg.enabled = false;
         s.buttons();
-        let summon = BUTTONS.iter().position(|b| *b == Button::Summon).unwrap();
+        let summon = index_of(Button::Summon);
         s.click(summon);
         assert!(s.cfg.enabled);
         let out = s.step(1, &Sense { day_time: 6_000, ..night_sense() });

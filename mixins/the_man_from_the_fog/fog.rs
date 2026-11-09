@@ -104,8 +104,12 @@ pub enum Action {
     StepCloser { distance: f64 },
     /// Switch his own AI on (a chase) and send him towards the player.
     Hunt,
-    /// Break what stands between him and the player.
-    BreakAhead,
+    /// Break what stands between him and the player. `search`: he cannot see the player.
+    BreakAhead { search: bool },
+    /// Climb the wall in front of him.
+    Climb,
+    /// The Darkness effect on the player as a hunt starts.
+    Darkness,
     /// Take him away. `with_lightning` also strikes a harmless bolt where he stood.
     Remove { with_lightning: bool },
     Sound(Cue),
@@ -239,6 +243,9 @@ impl Fog {
         self.still = 0;
         self.last_pos = None;
         out.push(Action::Sound(Cue::Chase));
+        if cfg.darkness_effect {
+            out.push(Action::Darkness);
+        }
         out.push(Action::Hunt);
     }
 
@@ -272,7 +279,7 @@ impl Fog {
                     self.timer -= 1;
                     return out;
                 }
-                if !(forced || cfg.day_spawns || is_night(s.day_time)) {
+                if !(forced || cfg.spawn_at_day || is_night(s.day_time)) {
                     return out; // he waits for the dark
                 }
                 self.phase = Phase::Spawning;
@@ -345,7 +352,7 @@ impl Fog {
                     self.hunt_tick = 0;
                     out.push(Action::Hunt);
                 }
-                // Stuck: hardly moved in a second while still far from the player.
+                // Stuck: hardly moved for a few ticks while still far from the player.
                 if let Some(last) = self.last_pos {
                     if length(sub(mob.pos, last)) < 0.05 {
                         self.still += 1;
@@ -356,9 +363,21 @@ impl Fog {
                 self.last_pos = Some(mob.pos);
                 self.since_break += 1;
                 let dist = length(sub(mob.pos, s.player));
-                if cfg.break_blocks && self.since_break >= cfg.break_interval && self.still >= 6 && dist > 2.0 {
+                // Out of the player's sight and far enough away: he fades.
+                if !mob.in_sight && dist > cfg.vanish_distance {
+                    out.push(Action::Remove { with_lightning: false });
+                    out.push(Action::Sound(Cue::Vanish));
+                    self.rest(cfg);
+                    return out;
+                }
+                let stuck = self.still >= 6 && dist > 2.0;
+                if stuck && cfg.climbing && self.still % 4 == 2 {
+                    out.push(Action::Climb);
+                }
+                let searching = !mob.in_sight;
+                if cfg.break_blocks && stuck && self.since_break >= cfg.break_interval && (!searching || cfg.search_mechanic) {
                     self.since_break = 0;
-                    out.push(Action::BreakAhead);
+                    out.push(Action::BreakAhead { search: searching });
                 }
             }
         }
@@ -491,11 +510,11 @@ mod tests {
     #[test]
     fn day_spawns_and_forced_summons_ignore_the_hour() {
         let mut c = cfg();
-        c.day_spawns = true;
+        c.spawn_at_day = true;
         let mut f = Fog::new(2, &c);
         f.timer = 0;
         assert!(f.tick(&c, &sense(None, SOUTH, 6_000), false).iter().any(|a| matches!(a, Action::Spawn { .. })));
-        c.day_spawns = false;
+        c.spawn_at_day = false;
         let mut g = Fog::new(3, &c);
         let out = g.tick(&c, &sense(None, SOUTH, 6_000), true);
         assert!(out.iter().any(|a| matches!(a, Action::Spawn { .. })));
@@ -657,7 +676,7 @@ mod tests {
             let mut breaks = 0;
             for _ in 0..100 {
                 // He does not move: a wall.
-                breaks += f.tick(&c, &sense(at(20.0, true), SOUTH, NIGHT), false).iter().filter(|a| **a == Action::BreakAhead).count();
+                breaks += f.tick(&c, &sense(at(20.0, true), SOUTH, NIGHT), false).iter().filter(|a| matches!(a, Action::BreakAhead { .. })).count();
             }
             assert_eq!(breaks > 0, allowed, "allowed={allowed} breaks={breaks}");
             if allowed {
@@ -679,7 +698,7 @@ mod tests {
         }
         for i in 0..100 {
             let out = f.tick(&c, &sense(at(40.0 - i as f64 * 0.3, true), SOUTH, NIGHT), false);
-            assert!(!out.contains(&Action::BreakAhead));
+            assert!(!out.iter().any(|a| matches!(a, Action::BreakAhead { .. })));
         }
     }
 
@@ -728,5 +747,93 @@ mod tests {
         f.timer = 77;
         f.summon_now();
         assert_eq!(f.timer, 77);
+    }
+
+    #[test]
+    fn a_hunt_starts_with_darkness_if_enabled() {
+        for on in [true, false] {
+            let mut c = cfg();
+            c.vanish_chance = 0;
+            c.darkness_effect = on;
+            let mut f = Fog::new(30, &c);
+            run_to_watching(&mut f, &c);
+            let mut got = Vec::new();
+            for _ in 0..GAZE_TICKS {
+                got = f.tick(&c, &sense(at(40.0, true), SOUTH, NIGHT), false);
+            }
+            assert_eq!(got.contains(&Action::Darkness), on);
+        }
+    }
+
+    #[test]
+    fn a_hunter_who_lost_the_player_fades_at_the_vanish_distance() {
+        let mut c = cfg();
+        c.vanish_chance = 0;
+        c.vanish_distance = 30.0;
+        c.chase_min = 5000;
+        c.chase_max = 5000;
+        let mut f = Fog::new(31, &c);
+        run_to_watching(&mut f, &c);
+        for _ in 0..GAZE_TICKS {
+            f.tick(&c, &sense(at(40.0, true), SOUTH, NIGHT), false);
+        }
+        assert_eq!(f.phase, Phase::Chasing);
+        // In sight and far: he keeps hunting.
+        for _ in 0..20 {
+            let out = f.tick(&c, &sense(at(45.0, true), SOUTH, NIGHT), false);
+            assert!(!out.iter().any(|a| matches!(a, Action::Remove { .. })));
+        }
+        // Out of sight but near: he keeps hunting.
+        let out = f.tick(&c, &sense(at(20.0, false), SOUTH, NIGHT), false);
+        assert!(!out.iter().any(|a| matches!(a, Action::Remove { .. })));
+        // Out of sight and farther than 30: gone, without lightning.
+        let out = f.tick(&c, &sense(at(35.0, false), SOUTH, NIGHT), false);
+        assert!(out.contains(&Action::Remove { with_lightning: false }));
+        assert_eq!(f.phase, Phase::Idle);
+    }
+
+    fn stuck_chase(c: &Config, in_sight: bool, ticks: usize) -> Vec<Action> {
+        let mut f = Fog::new(32, c);
+        run_to_watching(&mut f, c);
+        for _ in 0..GAZE_TICKS {
+            f.tick(c, &sense(at(20.0, true), SOUTH, NIGHT), false);
+        }
+        let mut all = Vec::new();
+        for _ in 0..ticks {
+            all.extend(f.tick(c, &sense(at(20.0, in_sight), SOUTH, NIGHT), false));
+        }
+        all
+    }
+
+    #[test]
+    fn stuck_hunters_climb_if_allowed() {
+        let mut c = cfg();
+        c.vanish_chance = 0;
+        c.chase_min = 5000;
+        c.chase_max = 5000;
+        c.vanish_distance = 200.0;
+        for on in [true, false] {
+            c.climbing = on;
+            let acts = stuck_chase(&c, true, 60);
+            assert_eq!(acts.contains(&Action::Climb), on);
+        }
+    }
+
+    #[test]
+    fn searching_breaks_only_with_the_search_mechanic() {
+        let mut c = cfg();
+        c.vanish_chance = 0;
+        c.chase_min = 5000;
+        c.chase_max = 5000;
+        c.vanish_distance = 200.0;
+        c.search_mechanic = true;
+        let acts = stuck_chase(&c, false, 60);
+        assert!(acts.contains(&Action::BreakAhead { search: true }));
+        c.search_mechanic = false;
+        let acts = stuck_chase(&c, false, 60);
+        assert!(!acts.iter().any(|a| matches!(a, Action::BreakAhead { .. })));
+        // Seeing the player he still breaks.
+        let acts = stuck_chase(&c, true, 60);
+        assert!(acts.contains(&Action::BreakAhead { search: false }));
     }
 }

@@ -14,3 +14,11 @@ pub const BASE_KIND: &str = "minecraft:husk";
 
 /// Where the config lives, in the game folder.
 pub const DIR: &str = "the-man-from-the-fog";
+
+/// His body's stats: 300 health and 15 damage as the original's 1.0.0 changelog gives, fast, and
+/// hard to knock back.
+pub const HEALTH: f32 = 300.0;
+pub const DAMAGE: f32 = 15.0;
+pub const SPEED: f64 = 0.35;
+pub const FOLLOW_RANGE: f64 = 128.0;
+pub const KNOCKBACK_RESISTANCE: f64 = 0.8;

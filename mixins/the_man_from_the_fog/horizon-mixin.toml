@@ -36,6 +36,12 @@ file = "crates/horizon-client/src/game.rs"
 name = "native_the_man_from_the_fog_state"
 source = "state.rs"
 
+[[module]]
+id = "view"
+file = "crates/horizon-client/src/game.rs"
+name = "native_the_man_from_the_fog_view"
+source = "view.rs"
+
 # The mod's row in Options > Mods, with a By tariksabanuz description.
 [[injection]]
 id = "listed"
@@ -89,4 +95,30 @@ bindings = [
   { name = "mob", ty = "&crate::game::native_mob_draw::NativeMobRender<'_>", value = "mob" },
   { name = "draw", ty = "&mut crate::game::native_block_entity_draw::BlockEntityDraw", value = "&mut *draw" },
   { name = "drawn", ty = "&mut bool", value = "&mut *drawn" },
+]
+
+# The fog thickens as he comes close (the client).
+[[injection]]
+id = "thick_fog"
+hook = "render_fog"
+hook_version = 1
+kind = "HEAD"
+helper = "fog_view.rs"
+bindings = [
+  { name = "game", ty = "&crate::game::Game<'_>", value = "self" },
+  { name = "camera", ty = "[f64; 3]", value = "camera" },
+  { name = "fog", ty = "&mut horizon_client::fog::FogData", value = "&mut *fog" },
+]
+
+# No sleeping with him near (the server).
+[[injection]]
+id = "sleep"
+hook = "can_player_sleep"
+hook_version = 1
+kind = "HEAD"
+helper = "sleep_block.rs"
+bindings = [
+  { name = "game", ty = "&crate::game::Game<'_>", value = "&*self" },
+  { name = "pos", ty = "[i32; 3]", value = "pos" },
+  { name = "problem", ty = "&mut Option<String>", value = "&mut *problem" },
 ]
