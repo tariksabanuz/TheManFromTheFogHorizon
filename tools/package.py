@@ -10,6 +10,7 @@ import hashlib
 import json
 from pathlib import Path
 import re
+import sys
 import tomllib
 import zipfile
 
@@ -60,7 +61,8 @@ def package():
     # code, so nobody installs a resource pack. The ogg files are not in the repository (`local-assets/assets/`).
     assets = ROOT / 'local-assets' / 'assets'
     extension = 'hnmod'
-    if assets.is_dir():
+    # `--code-only`: the source-only `.hnmod` the registry takes, without the sounds and pictures.
+    if assets.is_dir() and '--code-only' not in sys.argv:
         extension = 'hmod'
         files['horizon-mod.toml'] = (
             f'id = "{mod["id"]}"\nname = "The Man From The Fog"\nversion = "{mod["version"]}"\n'
