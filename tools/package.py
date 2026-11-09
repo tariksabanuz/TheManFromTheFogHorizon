@@ -56,7 +56,21 @@ def package():
                 files[(path.relative_to(ROOT)).as_posix()] = source.read_bytes()
                 if source is local:
                     print(f'using local-assets/{relative.as_posix()}')
-    out = ROOT / 'target' / f"{mod['id']}-{mod['version']}.hnmod"
+    # The sounds ride in the same file: a `.hmod` holds a mod's content (`horizon-mod.toml`, `assets/`) and its native
+    # code, so nobody installs a resource pack. The ogg files are not in the repository (`local-assets/assets/`).
+    assets = ROOT / 'local-assets' / 'assets'
+    extension = 'hnmod'
+    if assets.is_dir():
+        extension = 'hmod'
+        files['horizon-mod.toml'] = (
+            f'id = "{mod["id"]}"\nname = "The Man From The Fog"\nversion = "{mod["version"]}"\n'
+            'description = "By tariksabanuz. A stalker in the fog that watches, follows and hunts."\n'
+            'authors = ["tariksabanuz"]\napi = "0.2"\nside = "both"\ncapabilities = ["registries"]\n').encode()
+        for path in sorted(assets.rglob('*')):
+            if path.is_file():
+                files[path.relative_to(ROOT / 'local-assets').as_posix()] = path.read_bytes()
+        print('sounds packed into the .hmod')
+    out = ROOT / 'target' / f"{mod['id']}-{mod['version']}.{extension}"
     out.parent.mkdir(parents=True, exist_ok=True)
     with zipfile.ZipFile(out, 'w', compression=zipfile.ZIP_DEFLATED) as archive:
         for name, content in sorted(files.items()):
