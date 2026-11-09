@@ -7,14 +7,15 @@ fn the_man_from_the_fog_scare_draw(game: &crate::game::Game<'_>, batch: &mut hor
 
     let Some(ms) = st::with(|s| s.scare_elapsed_ms()) else { return };
     let Some(frame) = scare::frame_at(ms) else { return };
-    let name = if frame.frame == 0 { "the_man_from_the_fog:gui/jumpscare_1" } else { "the_man_from_the_fog:gui/jumpscare_2" };
+    let name = format!("the_man_from_the_fog:gui/jumpscare_{}", frame.frame + 1);
+    let name = name.as_str();
     // Without the picture there is no black screen either.
     if !game.gui.atlas.sprites.contains_key(name) {
         return;
     }
     let (w, h) = (batch.width, batch.height);
     game.native_fill(batch, [0.0, 0.0, w, h], 0xFF00_0000);
-    let (iw, ih) = (960.0_f32, 496.0_f32);
+    let (iw, ih) = (768.0_f32, 372.0_f32);
     // Fill the screen, cropping what does not fit; the picture is dark at its edges.
     let k = (w / iw).max(h / ih);
     let (dw, dh) = (iw * k, ih * k);

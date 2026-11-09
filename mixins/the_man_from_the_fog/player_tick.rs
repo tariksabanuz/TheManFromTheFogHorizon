@@ -118,6 +118,20 @@ fn the_man_from_the_fog_player(game: &mut crate::game::Game<'_>) {
         }
     }
 
+    // The jumpscare starts when he is close in a hunt, whatever the state machine thinks.
+    if let Some(id) = mob_id {
+        if cfg.jumpscare && !st::with(|s| s.scare_started()) {
+            let hunting = game.mobs.iter().any(|m| m.id == id && !m.no_ai && !m.removed);
+            if let (true, Some(m)) = (hunting, game.native_mob(&dim, id)) {
+                let (dx, dz) = (m.pos[0] - feet[0], m.pos[2] - feet[2]);
+                if (dx * dx + dz * dz).sqrt() < 7.0 {
+                    play(game, "the_man_from_the_fog:jumpscare", feet);
+                    st::with(|s| s.start_scare());
+                }
+            }
+        }
+    }
+
     // He hits: 15 damage about once a second while he hunts and is within reach. With the jumpscare on he
     // waits for it to play out, then the blow kills the player and he goes too, in lightning.
     let mut killed = false;
@@ -179,7 +193,8 @@ fn the_man_from_the_fog_player(game: &mut crate::game::Game<'_>) {
                             // 300 health and 15 damage, fast and hard to push, as the original's.
                             m.attrs.max_health = rt::HEALTH;
                             m.health = rt::HEALTH;
-                            m.attrs.attack_damage = rt::DAMAGE;
+                            // His blows are the ones below (15 damage, or the jumpscare's), not the husk's own.
+                            m.attrs.attack_damage = 0.0;
                             m.attrs.speed = rt::SPEED;
                             m.attrs.follow_range = rt::FOLLOW_RANGE;
                             m.attrs.knockback_resistance = rt::KNOCKBACK_RESISTANCE;
@@ -191,11 +206,21 @@ fn the_man_from_the_fog_player(game: &mut crate::game::Game<'_>) {
                         });
                         mob_id = Some(id);
                         play(game, fog::Cue::Appear.event(), at);
-                        if !game.audio.engine.registry.contains("the_man_from_the_fog:spawn") {
-                            game.native_chat("The Man From The Fog: his sounds did not load (no the_man_from_the_fog:spawn event).");
-                        }
-                        if !game.gui.atlas.sprites.contains_key("the_man_from_the_fog:gui/jumpscare_1") {
-                            game.native_chat("The Man From The Fog: the jumpscare picture did not load.");
+                        if st::with(|s| s.announce_once()) {
+                            let events = ["spawn", "step", "whisper", "spotted", "chase", "jumpscare", "vanish"];
+                            let missing: Vec<&str> = events
+                                .iter()
+                                .copied()
+                                .filter(|e| !game.audio.engine.registry.contains(&format!("the_man_from_the_fog:{e}")))
+                                .collect();
+                            let picture = game.gui.atlas.sprites.contains_key("the_man_from_the_fog:gui/jumpscare_1");
+                            let line = format!(
+                                "The Man From The Fog {}: sounds {}, jumpscare picture {}.",
+                                rt::VERSION,
+                                if missing.is_empty() { "loaded".to_owned() } else { format!("MISSING ({})", missing.join(", ")) },
+                                if picture { "loaded" } else { "MISSING" },
+                            );
+                            game.native_chat(&line);
                         }
                         if cfg.lightning {
                             game.spawn_bolt(at, true);
@@ -260,8 +285,10 @@ fn the_man_from_the_fog_player(game: &mut crate::game::Game<'_>) {
                 game.add_player_effect(horizon_client::effects::EffectInstance::new("darkness", 40, 0));
             }
             fog::Action::Jumpscare => {
-                play(game, "the_man_from_the_fog:jumpscare", feet);
-                st::with(|s| s.start_scare());
+                if !st::with(|s| s.scare_started()) {
+                    play(game, "the_man_from_the_fog:jumpscare", feet);
+                    st::with(|s| s.start_scare());
+                }
             }
             fog::Action::Remove { with_lightning } => {
                 if let Some(id) = mob_id {

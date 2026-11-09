@@ -20,6 +20,7 @@ pub struct State {
     /// Whether the jumpscare picture has been sent to the HUD atlas.
     scare_uploaded: bool,
     scare_seen: bool,
+    announced: bool,
     clock: u64,
     /// The mob that is his body, by player.
     mobs: HashMap<u128, u32>,
@@ -66,7 +67,7 @@ fn on_off(v: bool) -> &'static str {
 
 impl State {
     pub fn new(dir: PathBuf) -> State {
-        State { dir, loaded: false, cfg: Config::default(), fogs: HashMap::new(), summon: false, scare: None, scare_uploaded: false, scare_seen: false, clock: 0, mobs: HashMap::new() }
+        State { dir, loaded: false, cfg: Config::default(), fogs: HashMap::new(), summon: false, scare: None, scare_uploaded: false, scare_seen: false, announced: false, clock: 0, mobs: HashMap::new() }
     }
 
     fn ensure_loaded(&mut self) {
@@ -190,6 +191,16 @@ impl State {
             return None;
         }
         Some(ms)
+    }
+
+    /// True the first time it is asked, false after: one status line per game session.
+    pub fn announce_once(&mut self) -> bool {
+        !std::mem::replace(&mut self.announced, true)
+    }
+
+    /// A scare has begun (and may still be up) since he appeared.
+    pub fn scare_started(&self) -> bool {
+        self.scare_seen
     }
 
     /// The scare has been on screen and is over.

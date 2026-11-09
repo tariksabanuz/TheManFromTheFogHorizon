@@ -12,9 +12,26 @@ fn the_man_from_the_fog_draw(
     if !crate::game::native_the_man_from_the_fog_state::with(|s| s.tracked().contains(&mob.id)) {
         return;
     }
+    // He drops to all fours when he moves: the whole body leans forward from the hip, the arms reach for the
+    // ground, the legs trail and the head stays up.
+    let crawl = model::crawl_amount(mob.walk_speed);
+    let lean = model::CRAWL_LEAN * crawl;
+    draw.push();
+    if lean != 0.0 {
+        draw.rotate_about([1.0, 0.0, 0.0], lean, model::HIP);
+    }
     for part in model::PARTS.iter() {
-        let degrees = model::swing_degrees(part.motion, mob.walk_position, mob.walk_speed, mob.age);
+        let group = model::group_of(part.name);
+        let mut degrees = model::swing_degrees(part.motion, mob.walk_position, mob.walk_speed, mob.age) * (1.0 + 0.8 * crawl);
         draw.push();
+        if crawl > 0.0 {
+            let extra = model::crawl_extra(group, lean, crawl);
+            if group == model::Group::Head {
+                draw.rotate_about([1.0, 0.0, 0.0], extra, model::NECK_BASE);
+            } else {
+                degrees += extra;
+            }
+        }
         if part.splay != 0.0 {
             draw.rotate_about([0.0, 0.0, 1.0], part.splay, part.pivot);
         }
@@ -33,5 +50,6 @@ fn the_man_from_the_fog_draw(
         game.native_draw_cube(draw, part.from, part.to, faces, 0xFFFFFF);
         draw.pop();
     }
+    draw.pop();
     *drawn = true;
 }

@@ -135,6 +135,57 @@ pub const PARTS: &[Part] = &[
     decal("tooth_low_3_white", [1.7, 36.08, 3.0], [2.2, 37.1, 3.1], Paint::Teeth),
 ];
 
+/// Which part of the body a box belongs to, for the crawl pose.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub enum Group {
+    Torso,
+    Head,
+    Arm,
+    Leg,
+}
+
+pub fn group_of(name: &str) -> Group {
+    if name.starts_with("arm_") || name.starts_with("forearm_") || name.starts_with("hand_") || name.starts_with("claw_") {
+        Group::Arm
+    } else if name.starts_with("leg_") {
+        Group::Leg
+    } else if name.starts_with("head")
+        || name.starts_with("neck")
+        || name.starts_with("mouth")
+        || name.starts_with("eye")
+        || name.starts_with("tooth")
+    {
+        Group::Head
+    } else {
+        Group::Torso
+    }
+}
+
+/// Where the body bends forward when he drops to all fours (the hip), and where the head sits on it, in blocks.
+pub const HIP: [f32; 3] = [0.0, 1.275, 0.0];
+pub const NECK_BASE: [f32; 3] = [0.0, 2.34, 0.0];
+/// How far forward the whole body leans in a full crawl, in degrees.
+pub const CRAWL_LEAN: f32 = 72.0;
+
+/// How much he crawls, 0 standing to 1 on all fours: he drops down once he moves, as the hunter does.
+pub fn crawl_amount(walk_speed: f32) -> f32 {
+    if !walk_speed.is_finite() {
+        return 0.0;
+    }
+    ((walk_speed - 0.12) / 0.4).clamp(0.0, 1.0)
+}
+
+/// Degrees to add about x to a box of `group` (on top of the body's own lean `lean`), so the arms
+/// reach out ahead of him to the ground, the legs trail and the head stays up looking at the player.
+pub fn crawl_extra(group: Group, lean: f32, amount: f32) -> f32 {
+    match group {
+        Group::Torso => 0.0,
+        Group::Arm => -lean - 35.0 * amount,
+        Group::Leg => -0.55 * lean,
+        Group::Head => -0.85 * lean,
+    }
+}
+
 /// Degrees a part swings at this moment of the walk cycle and its idle sway.
 ///
 /// `walk_position` and `walk_speed` are the mob's walk cycle (a vanilla quadruped swings its legs
@@ -233,5 +284,26 @@ mod tests {
         let m = Motion::Swing { sign: 1.0, amount: 0.6 };
         assert!(swing_degrees(m, 1e6, 100.0, -5.0).is_finite());
         assert!(swing_degrees(m, -3.0, -1.0, 1e9).is_finite());
+    }
+    #[test]
+    fn he_crawls_only_while_moving() {
+        assert_eq!(crawl_amount(0.0), 0.0);
+        assert_eq!(crawl_amount(1.0), 1.0);
+        assert!(crawl_amount(0.3) > 0.0 && crawl_amount(0.3) < 1.0);
+        assert_eq!(crawl_amount(f32::NAN), 0.0);
+    }
+
+    #[test]
+    fn every_box_has_a_group_and_the_arms_reach_forward() {
+        for p in PARTS.iter() {
+            let _ = group_of(p.name);
+        }
+        assert_eq!(group_of("claw_left_2a"), Group::Arm);
+        assert_eq!(group_of("tooth_low_1_red"), Group::Head);
+        assert_eq!(group_of("leg_right"), Group::Leg);
+        assert_eq!(group_of("torso"), Group::Torso);
+        // Lean plus the arm's own turn leaves the arm pointing down and a little forward.
+        let total = CRAWL_LEAN + crawl_extra(Group::Arm, CRAWL_LEAN, 1.0);
+        assert!(total < 0.0 && total > -60.0, "{total}");
     }
 }

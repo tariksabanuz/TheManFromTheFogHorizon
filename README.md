@@ -28,14 +28,14 @@ Options > Mods > The Man From The Fog has buttons for the original's options (`s
 `the-man-from-the-fog/config.txt`, where every key can also be edited by hand (`min_chase_duration`,
 `max_chase_duration` and `vanish_distance` too).
 
-## Status: 0.1.11, early
+## Status: 0.1.12, early
 
 The behaviour (`fog.rs`), settings, model data and fog maths are plain Rust with 51 unit tests. The wiring to
 Horizon's hooks (`player_tick.rs`, `mob_draw.rs`, `fog_view.rs`, `sleep_block.rs`) was written against the pinned
 Horizon source but **has not been built in a real Horizon checkout yet** (the build environment had no network).
 Report launcher errors as issues.
 
-Not in 0.1.11, and why: his own sounds (the original's sound files are not available to a clean-room port, so
+Not in 0.1.12, and why: his own sounds (the original's sound files are not available to a clean-room port, so
 vanilla sounds are used); the full-screen jumpscare on the killing blow (`jumpscare`); crawling through one-block
 gaps; his fights with iron golems; the original's later additions (Hanging Man, cultists, Tear of the Man, cassettes,
 which only one unverified source describes); dedicated servers (single player and LAN host only).
@@ -62,9 +62,11 @@ word in their name (see the table at the top of the script); an event with no so
 
 ## The jumpscare screen
 
-When he reaches you the screen flashes black, shows a picture that flickers between two frames, shakes, and fades
-out (`scare.rs`). The picture is not in this repository (it is someone else's artwork). Without it the screen only
-flashes black. To use your own copy of the original's images, run
-`python3 tools/prepare_jumpscare.py PATH/TO/TheManFromTheFog`, which writes `local-assets/jumpscare.rgba`; the
-next `python3 tools/package.py` puts it in the `.hnmod`. `local-assets/` is not committed.
+When he is close in a hunt the screen shows the original's jumpscare animation (he lunges at the camera, then
+jitters), shakes and fades out (`scare.rs`, `scare_draw.rs`); the blow that follows kills the player and he goes in
+lightning. The frames are the mod's own GUI textures, `assets/the_man_from_the_fog/textures/gui/jumpscare_1.png` to
+`_10.png`, inside the `.hmod`. They are not in this repository (they are someone else's artwork); without them
+there is no jumpscare screen. To make them from your own copy of the original's images run
+`python3 tools/prepare_jumpscare.py PATH/TO/TheManFromTheFog`; the next `python3 tools/package.py` puts them in the
+`.hmod`. `local-assets/` is not committed.
 

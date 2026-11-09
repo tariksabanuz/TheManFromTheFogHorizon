@@ -9,7 +9,7 @@
 
 pub const DURATION_MS: u64 = 1_800;
 /// How long each of the two frames stays up.
-pub const FLICKER_MS: u64 = 90;
+pub const FLICKER_MS: u64 = 70;
 /// When the fade to black starts.
 pub const FADE_FROM_MS: u64 = 1_300;
 
@@ -41,7 +41,7 @@ impl Image<'_> {
 
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct Frame {
-    /// 0 or 1: which of the two stacked frames shows.
+    /// 0 to 9: which frame of the original animation shows (`jumpscare_1` to `jumpscare_10`).
     pub frame: usize,
     /// Offset in GUI pixels.
     pub shake: [f32; 2],
@@ -50,6 +50,12 @@ pub struct Frame {
 }
 
 /// What the screen shows `elapsed_ms` after the scare began; None once it is over.
+/// The original's animation: five frames of him lunging at the camera, then a loop of the five after them.
+pub fn frame_index(elapsed_ms: u64) -> usize {
+    let step = (elapsed_ms / FLICKER_MS) as usize;
+    if step < 5 { step } else { 5 + (step - 5) % 5 }
+}
+
 pub fn frame_at(elapsed_ms: u64) -> Option<Frame> {
     if elapsed_ms >= DURATION_MS {
         return None;
@@ -61,7 +67,7 @@ pub fn frame_at(elapsed_ms: u64) -> Option<Frame> {
         (elapsed_ms - FADE_FROM_MS) as f32 / (DURATION_MS - FADE_FROM_MS) as f32
     };
     Some(Frame {
-        frame: ((elapsed_ms / FLICKER_MS) % 2) as usize,
+        frame: frame_index(elapsed_ms),
         shake: [(t * 0.9).sin() * 6.0, (t * 1.3).cos() * 4.0],
         fade,
     })
@@ -101,7 +107,10 @@ mod tests {
     fn the_screen_flickers_then_fades_then_ends() {
         assert_eq!(frame_at(0).unwrap().frame, 0);
         assert_eq!(frame_at(FLICKER_MS).unwrap().frame, 1);
-        assert_eq!(frame_at(2 * FLICKER_MS).unwrap().frame, 0);
+        assert_eq!(frame_at(4 * FLICKER_MS).unwrap().frame, 4);
+        assert_eq!(frame_at(5 * FLICKER_MS).unwrap().frame, 5);
+        assert_eq!(frame_at(10 * FLICKER_MS).unwrap().frame, 5);
+        assert_eq!(frame_at(14 * FLICKER_MS).unwrap().frame, 9);
         assert_eq!(frame_at(FADE_FROM_MS).unwrap().fade, 0.0);
         let late = frame_at(DURATION_MS - 1).unwrap().fade;
         assert!(late > 0.99 && late <= 1.0, "{late}");
