@@ -18,6 +18,8 @@ pub struct State {
     clock: u64,
     /// The mob that is his body, by player.
     mobs: HashMap<u128, u32>,
+    /// Players for whom `/test` asked him to appear on their next tick.
+    summon_for: std::collections::HashSet<u128>,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -61,7 +63,7 @@ fn on_off(v: bool) -> &'static str {
 
 impl State {
     pub fn new(dir: PathBuf) -> State {
-        State { dir, loaded: false, cfg: Config::default(), fogs: HashMap::new(), summon: false, clock: 0, mobs: HashMap::new() }
+        State { dir, loaded: false, cfg: Config::default(), fogs: HashMap::new(), summon: false, summon_for: std::collections::HashSet::new(), clock: 0, mobs: HashMap::new() }
     }
 
     fn ensure_loaded(&mut self) {
@@ -168,6 +170,13 @@ impl State {
         nanos ^ (key as u64) ^ ((key >> 64) as u64).rotate_left(17) ^ self.clock.rotate_left(33)
     }
 
+    /// `/test`: turns him on and makes him appear for the player `key` on their next tick.
+    pub fn request_summon(&mut self, key: u128) {
+        self.ensure_loaded();
+        self.cfg.enabled = true;
+        self.summon_for.insert(key);
+    }
+
     /// One tick for the player `key`.
     pub fn step(&mut self, key: u128, sense: &Sense) -> Vec<Action> {
         self.ensure_loaded();
@@ -175,7 +184,7 @@ impl State {
             let seed = self.seed(key);
             self.fogs.insert(key, Fog::new(seed, &self.cfg));
         }
-        let forced = std::mem::take(&mut self.summon);
+        let forced = std::mem::take(&mut self.summon) || self.summon_for.remove(&key);
         let cfg = self.cfg.clone();
         let Some(fog) = self.fogs.get_mut(&key) else { return Vec::new() };
         if forced {
@@ -388,5 +397,16 @@ mod tests {
         s.set_mob(2, 7);
         s.forget_all();
         assert!(s.fogs.is_empty() && s.tracked().is_empty());
+    }
+
+    #[test]
+    fn test_command_turns_him_on_and_asks_for_the_player_only() {
+        let mut st = State::new(std::env::temp_dir().join("tmftf-state-test-none"));
+        st.ensure_loaded();
+        st.cfg.enabled = false;
+        st.request_summon(7);
+        assert!(st.cfg.enabled);
+        assert!(st.summon_for.contains(&7));
+        assert!(!st.summon_for.contains(&8));
     }
 }
